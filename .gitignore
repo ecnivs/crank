@@ -1,0 +1,11 @@
+__pycache__/
+*.json
+*.yml
+.env
+*.mp4
+!example.mp4
+.venv/
+!preset.yml
+configs/
+tokens/
+run.py
