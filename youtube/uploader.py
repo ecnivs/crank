@@ -37,7 +37,9 @@ class Uploader:
 
             self._try_authenticate()
         except Exception as e:
-            raise RuntimeError("YouTube Authentication Failed.") from e
+            raise RuntimeError(
+                f"[{self.__class__.__name__}] Authentication Failed."
+            ) from e
 
     def _try_authenticate(self):
         if self.token_file.exists() and not self.credentials:
