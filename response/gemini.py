@@ -4,6 +4,7 @@ import time
 from google.genai import types
 import wave
 import os
+from pathlib import Path
 
 
 class Gemini:
@@ -60,7 +61,7 @@ class Gemini:
 
             path = self._save_to_wav(data)
             self.logger.info(f"Audio saved to {path}")
-            return path
+            return Path(path)
 
         except Exception as e:
             raise RuntimeError("Failed to generate audio") from e

@@ -68,9 +68,11 @@ class Uploader:
         try:
             body = {
                 "snippet": {
-                    "title": video_data.get("title"),
-                    "description": video_data.get("description"),
-                    "categoryId": video_data.get("categoryId"),
+                    "title": f"{video_data.get('title', '')} #shorts",
+                    "description": video_data.get(
+                        "description", "Like and Subscribe!!"
+                    ),
+                    "categoryId": video_data.get("categoryId", 24),
                 },
                 "status": {"privacyStatus": "public"},
             }
@@ -101,6 +103,7 @@ class Uploader:
                 f"Uploaded successfully: https://www.youtube.com/watch?v={response['id']}"
             )
             return scheduled_publish_time or datetime.datetime.now(datetime.UTC)
+
         except ResumableUploadError:
             raise
         except Exception as e:

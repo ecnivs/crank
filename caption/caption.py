@@ -1,6 +1,7 @@
 import logging
 import spacy
 from .stt import SpeechToText
+from pathlib import Path
 
 
 class Handler:
@@ -99,4 +100,4 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     i += chunk_size
 
         self.logger.info(f"ASS saved to {path}")
-        return path
+        return Path(path)

@@ -115,4 +115,4 @@ class Scraper:
         short_path = self._clip_video(video_path)
         video_path.unlink(missing_ok=True)
         self.logger.info(f"Video template stored at {short_path}")
-        return short_path
+        return Path(short_path)

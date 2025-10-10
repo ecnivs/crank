@@ -2,6 +2,7 @@ import os
 import subprocess
 import json
 import logging
+from pathlib import Path
 
 
 class Editor:
@@ -104,7 +105,7 @@ class Editor:
                     f"[{self.__class__.__name__}] Failed to generate output video (file is empty or doesn't exist)"
                 )
             self.logger.info(f"Successfully generated output video to {output_path}")
-            return output_path
+            return Path(output_path)
 
         except subprocess.CalledProcessError as e:
             error_output = e.stderr if e.stderr else str(e)

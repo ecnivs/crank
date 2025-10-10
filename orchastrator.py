@@ -1,17 +1,27 @@
 import logging
-import queue
 import datetime
+from pathlib import Path
 from googleapiclient.http import ResumableUploadError
 import asyncio
 from prompt import Prompt
 import re
+from typing import List, Dict
 
 
 class Orchastrator:
-    def __init__(self, preset, scraper, gemini, editor, caption, uploader):
-        self.logger = logging.getLogger(__class__.__name__)
+    def __init__(self, preset, scraper, gemini, editor, caption, uploader) -> None:
+        """
+        Orachastrates video generation and upload.
 
-        self.queue = queue.Queue()
+        Args:
+            preset: Crank config
+            scraper: Instance of scraper module
+            gemini: Instance of gemini module
+            editor: Instance of editor module
+            caption: Instance of caption module
+            Uploader: Instance of uploader module
+        """
+        self.logger: logging.Logger = logging.getLogger(__class__.__name__)
 
         self.preset = preset
         self.scraper = scraper
@@ -19,13 +29,21 @@ class Orchastrator:
         self.editor = editor
         self.caption = caption
         self.uploader = uploader
-        self.prompt = Prompt()
 
-    def _upload(self, data, output_path):
-        title = data.get("title", "crank short")
+        self.prompt: Prompt = Prompt()
+
+    def _upload(self, data, video_path) -> None:
+        """
+        Stores the video and details in a dictionary and sends it to the uploader.
+
+        Args:
+            data: Dictionary containing parsed responses from gemini
+            video_path: Path where the generated video is stored
+        """
+        title: str = data.get("title")
 
         upload_dict = {
-            "video_path": output_path,
+            "video_path": video_path,
             "title": title,
             "description": data.get("description", ""),
             "categoryId": data.get("categoryId", 24),
@@ -44,31 +62,38 @@ class Orchastrator:
             )
             self.logger.warning("Upload limit reached")
 
-        current = self.preset.get("USED_CONTENT") or []
+        current: List = self.preset.get("USED_CONTENT") or []
         if title and title not in current:
             current.append(title.strip())
             self.preset.set("USED_CONTENT", current[-100:])
 
-    def _process_task(self, data):
-        media_path = self.scraper.get_media(data.get("search_term"))
-        logging.info(f"Template: {media_path}")
+    def _process_task(self, data) -> None:
+        """
+        Orachastrates generation and assembly of video template, voiceover, captions and forwards it for upload.
 
-        audio_path = self.gemini.get_audio(transcript=data.get("transcript"))
-        logging.info(f"Voiceover: {audio_path}")
+        Args:
+            data: Dictionary containing parsed responses from gemini
+        """
+        media_path: Path = self.scraper.get_media(data.get("search_term"))
+        audio_path: Path = self.gemini.get_audio(transcript=data.get("transcript"))
+        ass_path: Path = self.caption.get_captions(audio_path=audio_path)
 
-        ass_path = self.caption.get_captions(audio_path=audio_path)
-        logging.info(f"Captions: {ass_path}")
-
-        output_path = self.editor.assemble(
+        video_path: Path = self.editor.assemble(
             ass_path=ass_path, audio_path=audio_path, media_path=media_path
         )
 
         if self.uploader:
-            self._upload(data, output_path)
+            self._upload(data, video_path=video_path)
 
-    async def process(self, prompt):
-        response = self.prompt.build(prompt)
-        text = self.gemini.get_response(response, 2.5)
+    async def process(self, prompt) -> None:
+        """
+        Gets and parses gemini response and forwards it for video generation.
+
+        Args:
+            prompt: topic for the video
+        """
+        response: str = self.prompt.build(prompt)
+        text: str = self.gemini.get_response(response, 2.5)
 
         field_map = {
             "TRANSCRIPT": "transcript",
@@ -78,7 +103,7 @@ class Orchastrator:
             "CATEGORY_ID": "categoryId",
         }
 
-        result = {}
+        result: Dict = {}
         for prefix, key in field_map.items():
             pattern = rf"{re.escape(prefix)}:\s*(.*?)(?=\n(?:TRANSCRIPT|DESCRIPTION|SEARCH_TERM|TITLE|CATEGORY_ID):|$)"
             match = re.search(pattern, text, re.DOTALL)
