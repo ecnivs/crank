@@ -67,7 +67,6 @@ class Orchastrator:
             self._upload(data, output_path)
 
     async def process(self, prompt):
-        self.logger.info(f"New Prompt: {prompt}")
         response = self.prompt.build(prompt)
         text = self.gemini.get_response(response, 2.5)
 

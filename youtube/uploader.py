@@ -17,7 +17,7 @@ class Uploader:
         self.scopes = ["https://www.googleapis.com/auth/youtube.upload"]
 
         self.secrets_file = auth_token  # Oauth credentials
-        self.token_folder = Path("tokens")
+        self.token_folder = Path(".tokens")
         self.token_folder.mkdir(exist_ok=True)
         self.token_file = self.token_folder / f"{self.name}_token.json"
 

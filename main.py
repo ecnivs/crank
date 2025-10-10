@@ -110,7 +110,6 @@ class Core:
                     prompt = input("Prompt -> ")
 
                 await self.orchastrator.process(prompt)
-
                 await asyncio.sleep(0.01)
 
             except RuntimeError as e:

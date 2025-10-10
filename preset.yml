@@ -1,1 +1,7 @@
+NAME: "My Shorts Channel"
+
 UPLOAD: false
+
+WHISPER_MODEL: small
+
+DELAY: 12
