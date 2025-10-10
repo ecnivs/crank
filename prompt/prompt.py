@@ -16,5 +16,5 @@ class Prompt:
 
     def build(self, query):
         output_lines = [f"{key}: {value}" for key, value in self.output_format.items()]
-        output_section = "Provide output in this format:\n" + "\n".join(output_lines)
+        output_section = "Provide output in this format: " + " ".join(output_lines)
         return f"Topic: {query}\n\n\n{output_section}"

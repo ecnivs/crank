@@ -4,6 +4,7 @@ import datetime
 from googleapiclient.http import ResumableUploadError
 import asyncio
 from prompt import Prompt
+import re
 
 
 class Orchastrator:
@@ -52,7 +53,7 @@ class Orchastrator:
         media_path = self.scraper.get_media(data.get("search_term"))
         logging.info(f"Template: {media_path}")
 
-        audio_path = self.gemini.get_audio(transcript=data.get("content"))
+        audio_path = self.gemini.get_audio(transcript=data.get("transcript"))
         logging.info(f"Voiceover: {audio_path}")
 
         ass_path = self.caption.get_captions(audio_path=audio_path)
@@ -68,29 +69,28 @@ class Orchastrator:
     async def process(self, prompt):
         self.logger.info(f"New Prompt: {prompt}")
         response = self.prompt.build(prompt)
-
         text = self.gemini.get_response(response, 2.5)
 
-        for line in text.splitlines():
-            if line.startswith("TRANSCRIPT:"):
-                transcript = line[len("TRANSCRIPT:") :].strip()
-            elif line.startswith("DESCRIPTION:"):
-                description = line[len("DESCRIPTION:") :].strip()
-            elif line.startswith("SEARCH_TERM:"):
-                search_term = line[len("SEARCH_TERM:") :].strip()
-            elif line.startswith("TITLE:"):
-                title = line[len("TITLE:") :].strip()
-            elif line.startswith("CATEGORY_ID:"):
-                categoryId = line[len("CATEGORY_ID:") :].strip()
+        field_map = {
+            "TRANSCRIPT": "transcript",
+            "DESCRIPTION": "description",
+            "SEARCH_TERM": "search_term",
+            "TITLE": "title",
+            "CATEGORY_ID": "categoryId",
+        }
 
-        self._process_task(
-            {
-                "search_term": search_term,
-                "content": transcript,
-                "title": title,
-                "categoryId": categoryId,
-                "description": description,
-            }
-        )
+        result = {}
+        for prefix, key in field_map.items():
+            pattern = rf"{re.escape(prefix)}:\s*(.*?)(?=\n(?:TRANSCRIPT|DESCRIPTION|SEARCH_TERM|TITLE|CATEGORY_ID):|$)"
+            match = re.search(pattern, text, re.DOTALL)
+            if match:
+                result[key] = match.group(1).strip()
+            else:
+                result[key] = ""
+
+        if missing := [k for k, v in result.items() if not v]:
+            self.logger.warning(f"Missing or empty fields: {missing}")
+
+        self._process_task(result)
 
         await asyncio.sleep(0.01)
