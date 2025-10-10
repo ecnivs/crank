@@ -9,7 +9,7 @@ class Prompt:
         self.output_format = {
             "TRANSCRIPT": self.prompts.get("GET_CONTENT"),
             "DESCRIPTION": self.prompts.get("GET_DESCRIPTION"),
-            "SEARCH_TERM": self.prompts.get("TERM_PROMPT"),
+            "SEARCH_TERM": self.prompts.get("GET_SEARCH_TERM"),
             "TITLE": self.prompts.get("GET_TITLE"),
             "CATEGORY_ID": self.prompts.get("GET_CATEGORY_ID"),
         }

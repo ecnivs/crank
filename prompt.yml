@@ -1,4 +1,4 @@
-CONTENT_PROMPT: |
+GET_CONTENT: |
   Create a YouTube SHORT transcript about the topic.
 
   FORMAT REQUIREMENT:
@@ -38,7 +38,7 @@ GET_TITLE: |
   - Output only the title: no filler, no commentary, no reactions.
   - Avoid sensitive terms that violate YouTube community guidelines.
 
-TERM_PROMPT: |
+GET_SEARCH_TERM: |
   Given the transcript, identify the main subject discussed.
 
   - The subject will always be a single entity (character, place, object, concept).
