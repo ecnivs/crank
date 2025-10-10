@@ -70,7 +70,6 @@ class Uploader:
                 "snippet": {
                     "title": video_data.get("title"),
                     "description": video_data.get("description"),
-                    "tags": video_data.get("tags"),
                     "categoryId": video_data.get("categoryId"),
                 },
                 "status": {"privacyStatus": "public"},

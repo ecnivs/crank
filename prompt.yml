@@ -1,0 +1,58 @@
+CONTENT_PROMPT: |
+  Create a YouTube SHORT transcript about the topic.
+
+  FORMAT REQUIREMENT:
+  Write EXACTLY like this example format:
+  Say [tone]
+
+  Example:
+  Say enthusiastically: Did you know [Subject] has a shocking secret?
+  Say mysteriously: But here's the detail most people miss.
+  Say excitedly: It changes everything we thought we knew!"
+
+  TONE OPTIONS:
+  - Say mysteriously:
+  - Say dramatically:
+  - Say ominously:
+  - Say excitedly:
+  - Say conspiratorially:
+  - Say sadly:
+  - Say amazed:
+  - Say eerily:
+
+  CONTENT-SPECIFIC REQUIREMENTS:
+  - Reference specific details (events, quotes, sources)
+  - Include names, locations, and events accurately
+  - Reveal facts most viewers miss
+  - Connect different parts of the subject's history
+  - Build to a shocking revelation or hidden truth
+  - End with an engagement prompt ("Did you know this?" "What’s your favorite theory?")
+
+  Generate a complete transcript following the "Say [tone]:" format.
+
+GET_TITLE: |
+  Given the transcript, generate a catchy, concise, and SEO-optimized title that would maximize clicks and accurately reflect the core idea of the video.
+  - Keep it under 5 words.
+  - No clickbait or exaggeration.
+  - No formatting.
+  - Output only the title: no filler, no commentary, no reactions.
+  - Avoid sensitive terms that violate YouTube community guidelines.
+
+TERM_PROMPT: |
+  Given the transcript, identify the main subject discussed.
+
+  - The subject will always be a single entity (character, place, object, concept).
+  - Return ONLY a single word or short phrase representing that subject.
+  - Do NOT include any explanation, punctuation, quotes, or extra text.
+  - Examples: Atlantis, Excalibur, Naruto, Ancient Rome
+
+  OUTPUT FORMAT REQUIREMENT:
+  Cinematic {Subject} trailer
+
+GET_DESCRIPTION:
+  Given the transcript generate a YouTube SHORT description summarizing the content.
+  Add 15 SEO Optimzied Hashtags to match the content. E.g; '#[subject]'
+
+GET_CATEGORY_ID:
+  Given the transcript return the appropriate YouTube CategoryId.
+  E.g; 26

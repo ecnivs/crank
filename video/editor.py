@@ -48,7 +48,7 @@ class Editor:
             )
 
     def assemble(self, ass_path, audio_path, media_path):
-        output_path = self.workspace / "output.mp4"
+        output_path = "output.mp4"
 
         for file_path, file_desc in [
             (ass_path, "ASS subtitle file"),

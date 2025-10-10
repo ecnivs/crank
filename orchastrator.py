@@ -3,6 +3,7 @@ import queue
 import datetime
 from googleapiclient.http import ResumableUploadError
 import asyncio
+from prompt import Prompt
 
 
 class Orchastrator:
@@ -17,6 +18,7 @@ class Orchastrator:
         self.editor = editor
         self.caption = caption
         self.uploader = uploader
+        self.prompt = Prompt()
 
     def _upload(self, data, output_path):
         title = data.get("title", "crank short")
@@ -24,7 +26,6 @@ class Orchastrator:
         upload_dict = {
             "video_path": output_path,
             "title": title,
-            "tags": data.get("tags", []),
             "description": data.get("description", ""),
             "categoryId": data.get("categoryId", 24),
             "delay": self.preset.get("DELAY", 0),
@@ -47,20 +48,49 @@ class Orchastrator:
             current.append(title.strip())
             self.preset.set("USED_CONTENT", current[-100:])
 
-    async def run(self):
-        while True:
-            if not self.queue.empty():
-                data = self.queue.get()
+    def _process_task(self, data):
+        media_path = self.scraper.get_media(data.get("search_term"))
+        logging.info(f"Template: {media_path}")
 
-                media_path = self.scraper.get_media(data.get("search_term"))
-                audio_path = self.gemini.get_audio(transcript=data.get("content"))
-                ass_path = self.caption.get_captions(audio_path=audio_path)
+        audio_path = self.gemini.get_audio(transcript=data.get("content"))
+        logging.info(f"Voiceover: {audio_path}")
 
-                output_path = self.editor.assemble(
-                    ass_path=ass_path, audio_path=audio_path, media_path=media_path
-                )
+        ass_path = self.caption.get_captions(audio_path=audio_path)
+        logging.info(f"Captions: {ass_path}")
 
-                if self.uploader:
-                    self._upload(data, output_path)
+        output_path = self.editor.assemble(
+            ass_path=ass_path, audio_path=audio_path, media_path=media_path
+        )
 
-            await asyncio.sleep(0.01)
+        if self.uploader:
+            self._upload(data, output_path)
+
+    async def process(self, prompt):
+        self.logger.info(f"New Prompt: {prompt}")
+        response = self.prompt.build(prompt)
+
+        text = self.gemini.get_response(response, 2.5)
+
+        for line in text.splitlines():
+            if line.startswith("TRANSCRIPT:"):
+                transcript = line[len("TRANSCRIPT:") :].strip()
+            elif line.startswith("DESCRIPTION:"):
+                description = line[len("DESCRIPTION:") :].strip()
+            elif line.startswith("SEARCH_TERM:"):
+                search_term = line[len("SEARCH_TERM:") :].strip()
+            elif line.startswith("TITLE:"):
+                title = line[len("TITLE:") :].strip()
+            elif line.startswith("CATEGORY_ID:"):
+                categoryId = line[len("CATEGORY_ID:") :].strip()
+
+        self._process_task(
+            {
+                "search_term": search_term,
+                "content": transcript,
+                "title": title,
+                "categoryId": categoryId,
+                "description": description,
+            }
+        )
+
+        await asyncio.sleep(0.01)

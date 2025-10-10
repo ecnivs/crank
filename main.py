@@ -17,6 +17,13 @@ from pathlib import Path
 from argparse import ArgumentParser
 from orchastrator import Orchastrator
 
+# -------------------------------
+# Logging Configuration
+# -------------------------------
+logging.basicConfig(
+    level=logging.DEBUG, format="%(levelname)s - %(message)s", force=True
+)
+
 
 # -------------------------------
 # Temporary Workspace
@@ -34,6 +41,9 @@ class Core:
     def __init__(self, workspace, path):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.workspace = Path(workspace)
+        self.logger.info(workspace)
+
+        self.preset = YmlHandler(Path(path))
 
         self.client = genai.Client(
             api_key=(
@@ -41,7 +51,6 @@ class Core:
             )
         )
 
-        self.preset = YmlHandler(Path(path))
         self.scraper = Scraper(workspace=self.workspace)
         self.editor = Editor(workspace=self.workspace)
         self.gemini = Gemini(client=self.client, workspace=self.workspace)
@@ -51,6 +60,7 @@ class Core:
             font=self.preset.get("FONT", default="Comic Sans MS"),
         )
 
+        self.uploader = None
         if self.preset.get("UPLOAD") is not False:
             self.uploader = Uploader(
                 name=self.preset.get("NAME", default="crank"),
@@ -94,6 +104,14 @@ class Core:
                         )
                         await asyncio.sleep(1)
                         time_left -= 1
+
+                prompt = self.preset.get("PROMPT")
+                if not prompt:
+                    prompt = input("Prompt -> ")
+
+                await self.orchastrator.process(prompt)
+
+                await asyncio.sleep(0.01)
 
             except RuntimeError as e:
                 self.logger.critical(e)
