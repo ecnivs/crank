@@ -91,11 +91,11 @@ class Orchastrator:
         Returns:
             Path: path to final rendered video file
         """
-        media_path: Path = self.scraper.get_media(data.get("search_term", ""))
-        audio_path: Path = self.gemini.get_audio(transcript=data.get("transcript", ""))
-        ass_path: Path = self.caption.get_captions(audio_path=audio_path)
+        media_path = self.scraper.get_media(data.get("search_term", ""))
+        audio_path = self.gemini.get_audio(transcript=data.get("transcript", ""))
+        ass_path = self.caption.get_captions(audio_path=audio_path)
 
-        video_path: Path = self.editor.assemble(
+        video_path = self.editor.assemble(
             ass_path=ass_path, audio_path=audio_path, media_path=media_path
         )
 

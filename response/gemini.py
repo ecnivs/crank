@@ -61,7 +61,7 @@ class Gemini:
 
             path = self._save_to_wav(data)
             self.logger.info(f"Audio saved to {path}")
-            return Path(path)
+            return path
 
         except Exception as e:
             raise RuntimeError("Failed to generate audio") from e

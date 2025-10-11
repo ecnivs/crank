@@ -2,18 +2,32 @@ import logging
 import spacy
 from .stt import SpeechToText
 from pathlib import Path
+from typing import List, Dict, Union
 
 
 class Handler:
-    def __init__(self, workspace, model_size, font):
-        self.logger = logging.getLogger(self.__class__.__name__)
-        self.workspace = workspace
-        self.stt = SpeechToText(model_size)
+    """
+    Generates ASS subtitles.
+    """
 
-        self.font = font
+    def __init__(self, workspace: Path, model_size: str, font: str) -> None:
+        """
+        Initialize the caption handler.
+
+        Args:
+            workspace: Path to store generated captions.
+            model_size: Size of Whisper model to load for transcription.
+            font: Font name to use in ASS subtitle styling.
+        """
+        self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
+        self.workspace: Path = workspace
+        self.workspace.mkdir(exist_ok=True)
+
+        self.stt: SpeechToText = SpeechToText(model_size)
+        self.font: str = font
         self.nlp = spacy.load("en_core_web_md", disable=["ner", "lemmatizer"])
 
-        self.header = f"""[Script Info]
+        self.header: str = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: 1920
 PlayResY: 1080
@@ -24,18 +38,36 @@ Style: Dynamic, {self.font}, 48, &H00FFFFFF, &H000000FF, &H00000000, &H80000000,
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
 
-    def _format_timestamp(self, ts):
+    def _format_timestamp(self, ts: float) -> str:
+        """
+        Convert seconds to ASS timestamp format (h:mm:ss.cs).
+
+        Args:
+            ts: Time in seconds.
+
+        Returns:
+            str: Formatted timestamp.
+        """
         h = int(ts // 3600)
         m = int((ts % 3600) // 60)
         s = int(ts % 60)
         cs = int((ts - int(ts)) * 100)
         return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
 
-    def _apply_pos_coloring(self, words):
+    def _apply_pos_coloring(self, words: List[str]) -> List[str]:
+        """
+        Apply color tags to words based on part-of-speech.
+
+        Args:
+            words: List of words in a segment.
+
+        Returns:
+            List[str]: Words with ASS color formatting applied.
+        """
         text = " ".join(words)
         doc = self.nlp(text)
 
-        colored_words = []
+        colored_words: List[str] = []
         for token in doc:
             if token.pos_ == "VERB":
                 colored_words.append(r"{\c&HD8BFD8&}" + token.text)
@@ -46,9 +78,18 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         return colored_words
 
-    def get_captions(self, audio_path):
-        result = self.stt.transcribe(audio_path)
-        path = self.workspace / "captions.ass"
+    def get_captions(self, audio_path: Union[str, Path]) -> Path:
+        """
+        Generate ASS captions from audio file.
+
+        Args:
+            audio_path: Path to audio file to transcribe.
+
+        Returns:
+            Path: Path to the generated ASS file.
+        """
+        result: Dict = self.stt.transcribe(audio_path)
+        path: Path = self.workspace / "captions.ass"
 
         with open(path, "w", encoding="utf-8") as f:
             f.write(self.header)
@@ -100,4 +141,4 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     i += chunk_size
 
         self.logger.info(f"ASS saved to {path}")
-        return Path(path)
+        return path

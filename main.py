@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 from argparse import ArgumentParser
 from orchastrator import Orchastrator
+from typing import Optional
 
 # -------------------------------
 # Logging Configuration
@@ -30,6 +31,9 @@ logging.basicConfig(
 # -------------------------------
 @contextmanager
 def new_workspace():
+    """
+    Context manager that creates a temporary directory and cleans it up afterward.
+    """
     temp_dir = tempfile.mkdtemp()
     try:
         yield temp_dir
@@ -38,45 +42,59 @@ def new_workspace():
 
 
 class Core:
-    def __init__(self, workspace, path):
-        self.logger = logging.getLogger(self.__class__.__name__)
-        self.workspace = Path(workspace)
-        self.logger.info(workspace)
+    """
+    Main class that wires together the entire pipeline.
+    """
 
-        self.preset = YmlHandler(Path(path))
+    def __init__(self, workspace: str, path: str) -> None:
+        """
+        Initialize all modules and orchestrator.
 
-        self.client = genai.Client(
+        Args:
+            workspace: Path to temporary workspace.
+            path: Path to YAML configuration file.
+        """
+        self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
+        self.workspace: Path = Path(workspace)
+        self.logger.info(f"Temporary workspace: {workspace}")
+
+        self.preset: YmlHandler = YmlHandler(Path(path))
+        self.client: genai.Client = genai.Client(
             api_key=(
                 self.preset.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
             )
         )
 
-        self.scraper = Scraper(workspace=self.workspace)
-        self.editor = Editor(workspace=self.workspace)
-        self.gemini = Gemini(client=self.client, workspace=self.workspace)
-        self.caption = Handler(
-            workspace=self.workspace,
-            model_size=self.preset.get("WHISPER_MODEL", default="small"),
-            font=self.preset.get("FONT", default="Comic Sans MS"),
-        )
-
-        self.uploader = None
+        self.uploader: Optional[Uploader] = None
         if self.preset.get("UPLOAD") is not False:
             self.uploader = Uploader(
                 name=self.preset.get("NAME", default="crank"),
                 auth_token=self.preset.get("OAUTH_PATH", "secrets.json"),
             )
 
-        self.orchastrator = Orchastrator(
+        self.orchastrator: Orchastrator = Orchastrator(
             preset=self.preset,
-            scraper=self.scraper,
-            gemini=self.gemini,
-            editor=self.editor,
-            caption=self.caption,
+            scraper=Scraper(workspace=self.workspace),
+            gemini=Gemini(client=self.client, workspace=self.workspace),
+            editor=Editor(workspace=self.workspace),
+            caption=Handler(
+                workspace=self.workspace,
+                model_size=self.preset.get("WHISPER_MODEL", default="small"),
+                font=self.preset.get("FONT", default="Comic Sans MS"),
+            ),
             uploader=self.uploader,
         )
 
-    def _time_left(self, num_hours=24):
+    def _time_left(self, num_hours: int = 24) -> int:
+        """
+        Calculate remaining cooldown time until next upload.
+
+        Args:
+            num_hours: Cooldown period in hours.
+
+        Returns:
+            int: Seconds remaining until next upload. Zero if ready.
+        """
         limit_time = self.preset.get("LIMIT_TIME")
         if not limit_time:
             return 0
@@ -87,10 +105,13 @@ class Core:
 
         return int(max((hours - elapsed).total_seconds(), 0))
 
-    async def run(self):
+    async def run(self) -> None:
+        """
+        Main loop: continuously generate and upload videos based on prompts.
+        """
         while True:
             try:
-                if hasattr(self, "uploader"):
+                if self.uploader:
                     time_left = self._time_left(num_hours=24)
                     while time_left > 0:
                         hours, minutes, seconds = (
@@ -105,7 +126,7 @@ class Core:
                         await asyncio.sleep(1)
                         time_left -= 1
 
-                prompt = self.preset.get("PROMPT")
+                prompt: Optional[str] = self.preset.get("PROMPT")
                 if not prompt:
                     prompt = input("Prompt -> ")
 
@@ -128,7 +149,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--path", help="Path to config.yml", default="preset.yml")
     args = parser.parse_args()
-    path = args.path
+    path: str = args.path
 
     with new_workspace() as workspace:
         core = Core(workspace, path)
