@@ -8,7 +8,7 @@ import re
 from typing import List, Dict, Any, Union
 
 
-class Orchastrator:
+class Orchestrator:
     """
     Central controller for automated video generation and upload.
     Handles prompt creation, content generation, media assembly, and upload.

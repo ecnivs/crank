@@ -15,7 +15,7 @@ import tempfile
 from dotenv import load_dotenv
 from pathlib import Path
 from argparse import ArgumentParser
-from orchastrator import Orchastrator
+from orchestrator import Orchestrator
 from typing import Optional
 
 # -------------------------------
@@ -72,7 +72,7 @@ class Core:
                 auth_token=self.preset.get("OAUTH_PATH", "secrets.json"),
             )
 
-        self.orchastrator: Orchastrator = Orchastrator(
+        self.orchestrator: Orchestrator = Orchestrator(
             preset=self.preset,
             scraper=Scraper(workspace=self.workspace),
             gemini=Gemini(client=self.client, workspace=self.workspace),
@@ -130,7 +130,7 @@ class Core:
                 if not prompt:
                     prompt = input("Prompt -> ")
 
-                await self.orchastrator.process(prompt)
+                await self.orchestrator.process(prompt)
                 await asyncio.sleep(0.01)
 
             except RuntimeError as e:
