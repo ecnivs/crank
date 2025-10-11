@@ -6,9 +6,10 @@ GET_CONTENT: |
   Say [tone]
 
   Example:
-  Say enthusiastically: Did you know [Subject] has a shocking secret?
-  Say mysteriously: But here's the detail most people miss.
-  Say excitedly: It changes everything we thought we knew!"
+  Say excitedly: They almost went bankrupt and then made history.
+  Say dramatically: In 2003, Apple was weeks from collapse before the iPod exploded in sales.
+  Say mysteriously: That single product didn’t just save the company, it changed tech forever.
+  Say conspiratorially: Did you know how close they were to shutting down?
 
   TONE OPTIONS:
   - Say mysteriously:
@@ -19,6 +20,25 @@ GET_CONTENT: |
   - Say sadly:
   - Say amazed:
   - Say eerily:
+
+  HOOK REQUIREMENT:
+  - The first line must grab attention instantly
+  - The hook must be short, punchy, and end sharply, DO NOT continue it with “but,” “yet,” or “because”
+  - Do not add emotional or reflective follow-ups (no “but some things can never be erased”)
+  - Do not mention names, places or key details in the hook
+  - The hook should be a standalone sentence that can make sense on its own
+  - The hook should sound like a spoiler or contradiction that makes viewers curious
+  - Examples of strong hooks:
+      - "They were seconds from disaster and still won." (Apollo 13)
+      - "Everyone said it was impossible until they did it." (Wright Brothers)
+      - "She was rejected twelve times and became a billionaire." (J.K. Rowling)
+      - "The company was dying and one idea saved it all." (Apple and the iPod)
+      - "It started as an accident and became a global icon." (Coca-Cola)
+      - "He failed a hundred times and invented the light bulb." (Thomas Edison)
+
+  LENGTH REQUIREMENT:
+  - Must fit within 30-60 seconds (around 50-100 words max)
+  - Keep it fast, direct, and hook-first. Reveal the result or twist immediately, then explain briefly
 
   CONTENT-SPECIFIC REQUIREMENTS:
   - Reference specific details (events, quotes, sources)
