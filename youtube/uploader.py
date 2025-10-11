@@ -54,7 +54,7 @@ class Uploader:
             self._try_authenticate()
         except Exception as e:
             raise RuntimeError(
-                f"[{self.__class__.__name__}] Authentication Failed."
+                f"[{self.__class__.__name__}] Authentication Failed: {e}"
             ) from e
 
     def _try_authenticate(self) -> None:

@@ -84,9 +84,8 @@ class Editor:
             Path(audio_path),
             Path(media_path),
         )
-        output_path = self.workspace / "output.mp4"
+        output_path = Path(self.workspace / "output.mp4")
 
-        # Validate files
         for file_path, desc in [
             (ass_path, "ASS subtitle"),
             (audio_path, "Audio"),
@@ -106,7 +105,6 @@ class Editor:
                 f"[{self.__class__.__name__}] Calculated video duration is not positive"
             )
 
-        # Build FFmpeg command
         cmd = [
             "ffmpeg",
             "-y",
@@ -153,10 +151,10 @@ class Editor:
         except subprocess.CalledProcessError as e:
             self.logger.error(f"FFmpeg failed: {e.stderr or str(e)}")
             raise RuntimeError(
-                f"[{self.__class__.__name__}] Error while processing video"
+                f"[{self.__class__.__name__}] Error while processing video: {e}"
             ) from e
         except Exception as e:
             self.logger.error(f"Unexpected error: {e}")
             raise RuntimeError(
-                f"[{self.__class__.__name__}] Error while processing video"
+                f"[{self.__class__.__name__}] Error while processing video: {e}"
             ) from e

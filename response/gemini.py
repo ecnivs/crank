@@ -64,7 +64,7 @@ class Gemini:
             return path
 
         except Exception as e:
-            raise RuntimeError("Failed to generate audio") from e
+            raise RuntimeError(f"Failed to generate audio: {e}") from e
 
     def get_response(self, query, model, max_retries=3):
         current_model = self.models.get(str(model))
