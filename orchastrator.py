@@ -5,44 +5,58 @@ from googleapiclient.http import ResumableUploadError
 import asyncio
 from prompt import Prompt
 import re
-from typing import List, Dict
+from typing import List, Dict, Any, Union
 
 
 class Orchastrator:
-    def __init__(self, preset, scraper, gemini, editor, caption, uploader) -> None:
+    """
+    Central controller for automated video generation and upload.
+    Handles prompt creation, content generation, media assembly, and upload.
+    """
+
+    def __init__(
+        self,
+        preset: Any,
+        scraper: Any,
+        gemini: Any,
+        editor: Any,
+        caption: Any,
+        uploader: Any,
+    ) -> None:
         """
-        Orachastrates video generation and upload.
+        Initialize the Orchestrator with module dependencies and configuration.
 
         Args:
-            preset: Crank config
-            scraper: Instance of scraper module
-            gemini: Instance of gemini module
-            editor: Instance of editor module
-            caption: Instance of caption module
-            Uploader: Instance of uploader module
+            preset: Instance of configuration handler.
+            scraper: Instance of a scraper module for retrieving visual media.
+            gemini: Instance of the gemini module for content and script generation.
+            editor: Instance of the video editor module for rendering final videos.
+            caption: Instance of the captioning module for subtitle generation.
+            uploader: Instance of the uploader module for publishing videos.
         """
-        self.logger: logging.Logger = logging.getLogger(__class__.__name__)
+        self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
 
-        self.preset = preset
-        self.scraper = scraper
-        self.gemini = gemini
-        self.editor = editor
-        self.caption = caption
-        self.uploader = uploader
+        self.preset: Any = preset
+        self.scraper: Any = scraper
+        self.gemini: Any = gemini
+        self.editor: Any = editor
+        self.caption: Any = caption
+        self.uploader: Any = uploader
 
         self.prompt: Prompt = Prompt()
 
-    def _upload(self, data, video_path) -> None:
+    def _upload(self, data: Dict[str, str], video_path: Union[str, Path]) -> None:
         """
-        Stores the video and details in a dictionary and sends it to the uploader.
+        Prepares metadata and sends the final video to the uploader.
+        Updates preset state.
 
         Args:
-            data: Dictionary containing parsed responses from gemini
-            video_path: Path where the generated video is stored
+            data: Parsed Gemini response with title, description, etc.
+            video_path: Path to the final rendered video file.
         """
-        title: str = data.get("title")
+        title: str = data.get("title", "")
 
-        upload_dict = {
+        upload_dict: Dict[str, Any] = {
             "video_path": video_path,
             "title": title,
             "description": data.get("description", ""),
@@ -62,40 +76,42 @@ class Orchastrator:
             )
             self.logger.warning("Upload limit reached")
 
-        current: List = self.preset.get("USED_CONTENT") or []
+        current: List[str] = self.preset.get("USED_CONTENT") or []
         if title and title not in current:
             current.append(title.strip())
             self.preset.set("USED_CONTENT", current[-100:])
 
-    def _process_task(self, data) -> None:
+    def _process_task(self, data: Dict[str, str]) -> Path:
         """
-        Orachastrates generation and assembly of video template, voiceover, captions and forwards it for upload.
+        Handles the full video creation pipeline for a single content entry.
 
         Args:
             data: Dictionary containing parsed responses from gemini
+
+        Returns:
+            Path: path to final rendered video file
         """
-        media_path: Path = self.scraper.get_media(data.get("search_term"))
-        audio_path: Path = self.gemini.get_audio(transcript=data.get("transcript"))
+        media_path: Path = self.scraper.get_media(data.get("search_term", ""))
+        audio_path: Path = self.gemini.get_audio(transcript=data.get("transcript", ""))
         ass_path: Path = self.caption.get_captions(audio_path=audio_path)
 
         video_path: Path = self.editor.assemble(
             ass_path=ass_path, audio_path=audio_path, media_path=media_path
         )
 
-        if self.uploader:
-            self._upload(data, video_path=video_path)
+        return video_path
 
-    async def process(self, prompt) -> None:
+    async def process(self, prompt: str) -> None:
         """
-        Gets and parses gemini response and forwards it for video generation.
+        Entry point for generating and uploading a video from a prompt.
 
         Args:
-            prompt: topic for the video
+            prompt: Topic or keyword to build a video around.
         """
         response: str = self.prompt.build(prompt)
         text: str = self.gemini.get_response(response, 2.5)
 
-        field_map = {
+        field_map: Dict[str, str] = {
             "TRANSCRIPT": "transcript",
             "DESCRIPTION": "description",
             "SEARCH_TERM": "search_term",
@@ -103,18 +119,18 @@ class Orchastrator:
             "CATEGORY_ID": "categoryId",
         }
 
-        result: Dict = {}
+        result: Dict[str, str] = {}
         for prefix, key in field_map.items():
             pattern = rf"{re.escape(prefix)}:\s*(.*?)(?=\n(?:TRANSCRIPT|DESCRIPTION|SEARCH_TERM|TITLE|CATEGORY_ID):|$)"
             match = re.search(pattern, text, re.DOTALL)
-            if match:
-                result[key] = match.group(1).strip()
-            else:
-                result[key] = ""
+            result[key] = match.group(1).strip() if match else ""
 
-        if missing := [k for k, v in result.items() if not v]:
+        missing: List[str] = [k for k, v in result.items() if not v]
+        if missing:
             self.logger.warning(f"Missing or empty fields: {missing}")
 
-        self._process_task(result)
+        video_path: Path = self._process_task(result)
+        if self.uploader:
+            self._upload(result, video_path=video_path)
 
         await asyncio.sleep(0.01)
