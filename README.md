@@ -1,6 +1,12 @@
 <h1 align="center">Crank</h1>
 <p align="center"><em>YouTube Shorts Generator</em></p>
 
+<div align="center">
+
+![484215357-2c272049-acc0-4b50-9b69-67c71cadf07e](https://github.com/user-attachments/assets/89e99b90-3396-44d4-b556-7de82734160b)
+
+</div>
+
 <p align="center">
   <a href="https://github.com/ecnivs/crank/stargazers">
     <img src="https://img.shields.io/github/stars/ecnivs/crank?style=flat-square">
@@ -89,6 +95,13 @@ Or provide your custom config file with `--path`:
 ```bash
 python main.py --path path/to/your_config.yml
 ```
+
+## 📹 Example Output
+<div align="center">
+
+https://github.com/user-attachments/assets/f897189d-c903-4fea-ac3e-136ed0c24a90
+
+</div>
 
 ## 💖 Support the project
 If you find Crank helpful and want to support its development, donations are welcome!  
