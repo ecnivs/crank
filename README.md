@@ -99,7 +99,7 @@ python main.py --path path/to/your_config.yml
 ## 📹 Example Output
 <div align="center">
 
-https://github.com/user-attachments/assets/f897189d-c903-4fea-ac3e-136ed0c24a90
+https://github.com/user-attachments/assets/69b1dc3d-79f2-4a6f-bde1-da6c07e32185
 
 </div>
 
