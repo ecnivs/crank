@@ -103,6 +103,17 @@ https://github.com/user-attachments/assets/f897189d-c903-4fea-ac3e-136ed0c24a90
 
 </div>
 
+## 🔮 Future Improvements
+Planned enhancements and upcoming features for Crank:
+
+- [ ] Frontend interface for easier control and previews  
+- [ ] Rewrite performance-critical modules in Rust  
+- [ ] Channel metadata customization  
+- [ ] Improve variability and diversity of generated content  
+- [ ] Automated thumbnail generation  
+- [ ] Input validation and error handling improvements  
+- [ ] Background music integration
+
 ## 💖 Support the project
 If you find Crank helpful and want to support its development, donations are welcome!  
 Your support helps keep the project active and enables new features.
