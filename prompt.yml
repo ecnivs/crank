@@ -1,5 +1,8 @@
 GET_CONTENT: |
-  Create a YouTube SHORT transcript about the topic.
+  From the provided topic list, randomly select one topic.
+  (If only one topic is provided, use that.)
+
+  Create a YouTube SHORT transcript about the selected topic.
 
   FORMAT REQUIREMENT:
   Write EXACTLY like this example format:
@@ -60,8 +63,9 @@ GET_TITLE: |
   - Keep it under 5 words.
   - No clickbait or exaggeration.
   - No formatting.
-  - Output only the title: no filler, no commentary, no reactions.
-  - Avoid sensitive terms that violate YouTube community guidelines.
+  - Output only the title followed by 1-2 relevant and broad hashtags.
+  - Hashtags should be lowercase and relevant to the main topic (e.g., if the topic is Diluc, use #genshinimpact #dilucgenshinimpact).
+  - Avoid sensitive or restricted terms that violate YouTube community guidelines.
 
 GET_SEARCH_TERM: |
   Given the transcript, identify the most visually distinctive subject for YouTube footage retrieval.
