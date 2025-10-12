@@ -47,6 +47,7 @@ The other credentials are stored as JSON files inside the root directory:
 #### Default settings in `preset.yml`
 Change the following directly in the file:
 - `NAME`: The channel name
+- `PROMPT`: Topic or idea to base the generated video on
 - `UPLOAD`: `true` or `false` to enable/disable uploads
 - `DELAY`: Number of hours between uploads: `0` for instant upload, or any positive number to schedule the video that many hours later (defaults to `2.5`)
 - `GEMINI_API_KEY`: Optional channel-specific API key (overrides .env if set)
