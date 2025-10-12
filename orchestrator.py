@@ -62,8 +62,7 @@ class Orchestrator:
             "description": data.get("description", ""),
             "categoryId": data.get("categoryId", 24),
             "delay": self.preset.get("DELAY", 0),
-            "last_upload": self.preset.get("LAST_UPLOAD")
-            or datetime.datetime.now(datetime.UTC),
+            "last_upload": self.preset.get("LAST_UPLOAD"),
         }
         try:
             self.preset.set(
@@ -108,7 +107,7 @@ class Orchestrator:
         Args:
             prompt: Topic or keyword to build a video around.
         """
-        response: str = self.prompt.build(prompt)
+        response: str = self.prompt.build(prompt, self.preset.get("USED_CONTENT", []))
         text: str = self.gemini.get_response(response, 2.5)
 
         field_map: Dict[str, str] = {

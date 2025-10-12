@@ -1,6 +1,6 @@
 from pathlib import Path
 from preset import YmlHandler
-from typing import Dict
+from typing import Dict, List
 
 
 class Prompt:
@@ -22,7 +22,7 @@ class Prompt:
             "CATEGORY_ID": self.prompts.get("GET_CATEGORY_ID", ""),
         }
 
-    def build(self, query: str) -> str:
+    def build(self, query: str, used_topics: List) -> str:
         """
         Construct a prompt for the AI using the loaded templates.
 
@@ -34,4 +34,4 @@ class Prompt:
         """
         output_lines = [f"{key}: {value}" for key, value in self.output_format.items()]
         output_section = "Provide output in this format: " + " ".join(output_lines)
-        return f"Topic: {query}\n\n\n{output_section}"
+        return f"Topic: {query}\n\nTopics to avoid: {used_topics}\n\n{output_section}"

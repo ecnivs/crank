@@ -48,6 +48,11 @@ GET_CONTENT: |
   - Build to a shocking revelation or hidden truth
   - End with an engagement prompt ("Did you know this?" "What’s your favorite theory?")
 
+  CLARITY REQUIREMENT:
+  - The transcript must make full sense through narration alone**
+  - Do NOT rely on visuals, cuts, or images to convey meaning
+  - Every line must be clear, self-contained, and understandable by audio only
+
   Generate a complete transcript following the "Say [tone]:" format.
 
 GET_TITLE: |
@@ -59,21 +64,27 @@ GET_TITLE: |
   - Avoid sensitive terms that violate YouTube community guidelines.
 
 GET_SEARCH_TERM: |
-  Given the transcript, identify the main subject discussed.
+  Given the transcript, identify the most visually distinctive subject for YouTube footage retrieval.
 
-  - The subject will always be a single entity (character, place, object, or concept).
-  - If the subject belongs to a larger franchise, universe, or source (e.g., Wanderer from Genshin Impact), include both the specific name and the source in the result.
+  Rules:
+  - Return a short search term (2–6 words) describing what should appear visually.
+  - If the subject is a character, location, or object from a known source (franchise, mythology, history), include both.
     Example: "Wanderer Genshin Impact"
-  - Return ONLY the combined subject phrase.
-  - Do NOT include punctuation, quotes, or extra words.
-  - Output must be short, clear, and specific.
+  - If the subject is abstract (e.g., “Freedom”, “Revolution”, “Time”), rewrite it into a concrete visual representation.
+    Examples:
+      - "Ancient Rome battle"
+      - "Industrial Revolution factory"
+      - "World War I trenches"
+      - "Greek gods Olympus"
+  - Prefer phrases that match strong, recognizable visuals.
+  - No punctuation, no quotes, no filler words.
 
   Examples:
-  - Wanderer Genshin Impact
-  - Excalibur Arthurian Legend
   - Kratos God of War
   - Atlantis Greek Mythology
-  - Eren Yeager Attack on Titan
+  - World War II soldiers
+  - Samurai Japan
+  - Ancient Egypt pyramids
 
 GET_DESCRIPTION: |
   Given the transcript generate a YouTube SHORT description summarizing the content.

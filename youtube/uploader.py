@@ -101,6 +101,15 @@ class Uploader:
             None: If the upload fails.
         """
         try:
+            now = datetime.datetime.now(datetime.UTC)
+            last_upload: Optional[datetime.datetime] = video_data.get("last_upload")
+            delay: int = video_data.get("delay", 0)
+
+            if last_upload and delay > 0:
+                scheduled_publish_time = last_upload + datetime.timedelta(hours=delay)
+            else:
+                scheduled_publish_time = now
+
             body: Dict[str, Any] = {
                 "snippet": {
                     "title": f"{video_data.get('title', '')} #shorts",
@@ -112,23 +121,11 @@ class Uploader:
                 "status": {"privacyStatus": "public"},
             }
 
-            last_upload: datetime.datetime = video_data.get(
-                "last_upload", datetime.datetime.now(datetime.UTC)
-            )
-            delay: int = video_data.get("delay", 0)
-            scheduled_publish_time: datetime.datetime = (
-                last_upload + datetime.timedelta(hours=delay)
-            )
-            now: datetime.datetime = datetime.datetime.now(datetime.UTC)
-
-            if delay and scheduled_publish_time > now:
+            if scheduled_publish_time > now:
                 body["status"]["publishAt"] = scheduled_publish_time.strftime(
                     "%Y-%m-%dT%H:%M:%S.000Z"
                 )
                 body["status"]["privacyStatus"] = "private"
-            else:
-                scheduled_publish_time = now
-                body["status"]["privacyStatus"] = "public"
 
             media_path: Union[str, Path] = video_data.get("video_path")
             media = MediaFileUpload(str(media_path), mimetype="video/*", resumable=True)
