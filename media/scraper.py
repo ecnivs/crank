@@ -67,7 +67,8 @@ class Scraper:
             "cookiefile": str(self.cookies_file),
         }
 
-        # query = f"Cinematic {query} trailer"
+        query = f"Cinematic {query}"
+
         with yt_dlp.YoutubeDL(ydl_opts_search) as ydl:
             search_url: str = f"ytsearch{max_results}:{query}"
             info: dict = ydl.extract_info(search_url, download=False)

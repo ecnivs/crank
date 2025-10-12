@@ -25,7 +25,7 @@ class Gemini:
         with wave.open(path, "wb") as wf:
             wf.setnchannels(1)
             wf.setsampwidth(2)
-            wf.setframerate(30000)
+            wf.setframerate(35000)
             wf.writeframes(pcm)
         return path
 
