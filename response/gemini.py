@@ -4,7 +4,6 @@ import time
 from google.genai import types
 import wave
 import os
-from pathlib import Path
 
 
 class Gemini:
