@@ -61,18 +61,24 @@ GET_TITLE: |
 GET_SEARCH_TERM: |
   Given the transcript, identify the main subject discussed.
 
-  - The subject will always be a single entity (character, place, object, concept).
-  - Return ONLY a single word or short phrase representing that subject.
-  - Do NOT include any explanation, punctuation, quotes, or extra text.
-  - Examples: Atlantis, Excalibur, Naruto, Ancient Rome
+  - The subject will always be a single entity (character, place, object, or concept).
+  - If the subject belongs to a larger franchise, universe, or source (e.g., Wanderer from Genshin Impact), include both the specific name and the source in the result.
+    Example: "Wanderer Genshin Impact"
+  - Return ONLY the combined subject phrase.
+  - Do NOT include punctuation, quotes, or extra words.
+  - Output must be short, clear, and specific.
 
-  OUTPUT FORMAT REQUIREMENT:
-  Cinematic {Subject} trailer
+  Examples:
+  - Wanderer Genshin Impact
+  - Excalibur Arthurian Legend
+  - Kratos God of War
+  - Atlantis Greek Mythology
+  - Eren Yeager Attack on Titan
 
-GET_DESCRIPTION:
+GET_DESCRIPTION: |
   Given the transcript generate a YouTube SHORT description summarizing the content.
   Add 15 SEO Optimzied Hashtags to match the content. E.g; '#[subject]'
 
-GET_CATEGORY_ID:
+GET_CATEGORY_ID: |
   Given the transcript return the appropriate YouTube CategoryId.
   E.g; 26

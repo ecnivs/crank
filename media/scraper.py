@@ -66,30 +66,50 @@ class Scraper:
             "skip_download": True,
             "cookiefile": str(self.cookies_file),
         }
-
+        query = f"Cinematic {query} trailer"
         with yt_dlp.YoutubeDL(ydl_opts_search) as ydl:
             search_url: str = f"ytsearch{max_results}:{query}"
             info: dict = ydl.extract_info(search_url, download=False)
-
             results: List[str] = [
                 f"https://www.youtube.com/watch?v={e['id']}"
                 for e in info.get("entries", [])
                 if e.get("id") and len(e["id"]) == 11
             ]
-
         if not results:
             raise ValueError(f"No results found for query: {query}")
 
-        url: str = results[0]
         output_template: str = str(self.workspace / "%(id)s.%(ext)s")
+        format_spec: str = (
+            "worstvideo[height<=720][height>=480][filesize<50M][ext=mp4]/"
+            "worstvideo[height<=720][height>=480][filesize<50M]"
+        )
+
         ydl_opts_download = {
             "outtmpl": output_template,
-            "format": "bestvideo[height<=720][height>=480][ext=mp4]",
+            "format": format_spec,
             "cookiefile": str(self.cookies_file),
+            "quiet": True,
         }
 
+        for url in results:
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
+                    info = ydl.extract_info(url, download=True)
+                    video_path: Path = Path(ydl.prepare_filename(info))
+                    if video_path.suffix != ".mp4":
+                        video_path = video_path.with_suffix(".mp4")
+                    return video_path
+            except Exception:
+                continue
+
+        fallback_format: str = (
+            "worstvideo[height<=720][height>=480][ext=mp4]/"
+            "worstvideo[height<=720][height>=480]"
+        )
+        ydl_opts_download["format"] = fallback_format
+
         with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
-            info = ydl.extract_info(url, download=True)
+            info = ydl.extract_info(results[0], download=True)
             video_path: Path = Path(ydl.prepare_filename(info))
             if video_path.suffix != ".mp4":
                 video_path = video_path.with_suffix(".mp4")
