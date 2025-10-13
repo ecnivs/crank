@@ -17,6 +17,7 @@ from pathlib import Path
 from argparse import ArgumentParser
 from orchestrator import Orchestrator
 from typing import Optional
+import sys
 
 # -------------------------------
 # Logging Configuration
@@ -55,6 +56,8 @@ class Core:
             path: Path to YAML configuration file.
         """
         self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
+        self.is_running: bool = True
+
         self.workspace: Path = Path(workspace)
         self.logger.info(f"Temporary workspace: {workspace}")
 
@@ -109,7 +112,7 @@ class Core:
         """
         Main loop: continuously generate and upload videos based on prompts.
         """
-        while True:
+        while self.is_running:
             try:
                 if self.uploader:
                     time_left = self._time_left(num_hours=24)
@@ -135,12 +138,14 @@ class Core:
 
             except RuntimeError as e:
                 self.logger.critical(e)
-                break
+                self.is_running = False
+                return
             except KeyboardInterrupt:
-                self.logger.info("Shutting down...")
-                break
+                self.is_running = False
+                return
             except Exception as e:
                 self.logger.error(e)
+                await asyncio.sleep(1)
 
 
 if __name__ == "__main__":
@@ -151,6 +156,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
     path: str = args.path
 
-    with new_workspace() as workspace:
-        core = Core(workspace, path)
-        asyncio.run(core.run())
+    try:
+        with new_workspace() as workspace:
+            core = Core(workspace, path)
+            asyncio.run(core.run())
+    except KeyboardInterrupt:
+        logging.info("Interrupted by user. Exiting cleanly...")
+        sys.exit(0)
+    except SystemExit:
+        raise
+    except Exception as e:
+        logging.critical(f"Fatal Error: {e}")
+        sys.exit(1)
