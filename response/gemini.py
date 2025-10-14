@@ -17,7 +17,7 @@ class Gemini:
             "2.0": "gemini-2.0-flash",
         }
 
-        self.voice = "Zephyr"
+        self.voice = "Alnilam"
 
     def _save_to_wav(self, pcm):
         path = os.path.join(self.workspace, "speech.wav")
@@ -25,7 +25,7 @@ class Gemini:
         with wave.open(path, "wb") as wf:
             wf.setnchannels(1)
             wf.setsampwidth(2)
-            wf.setframerate(35000)
+            wf.setframerate(32000)
             wf.writeframes(pcm)
         return path
 
