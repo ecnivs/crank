@@ -70,7 +70,7 @@ cd crank
 ```
 2. **Install dependencies**
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 3. **Install `ffmpeg`**
 ```bash
@@ -90,11 +90,11 @@ choco install ffmpeg
 ## 🚀 Running Crank
 Run the tool with the default configuration:
 ```bash
-python main.py
+uv run main.py
 ```
 Or provide your custom config file with `--path`:
 ```bash
-python main.py --path path/to/your_config.yml
+uv run main.py --path path/to/your_config.yml
 ```
 
 ## 📹 Example Output
@@ -103,15 +103,6 @@ python main.py --path path/to/your_config.yml
 https://github.com/user-attachments/assets/69b1dc3d-79f2-4a6f-bde1-da6c07e32185
 
 </div>
-
-## 🔮 Future Improvements
-Planned enhancements and upcoming features for Crank:
-
-- [ ] Frontend interface for easier control and previews
-- [ ] Rewrite performance-critical modules in Rust
-- [ ] Channel metadata customization
-- [ ] Automated thumbnail generation
-- [ ] Background music integration
 
 ## 💖 Support the project
 If you find Crank helpful and want to support its development, donations are welcome!  
