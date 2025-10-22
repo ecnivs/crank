@@ -1,0 +1,19 @@
+[project]
+name = "crank"
+version = "0.1.0"
+description = "YouTube Shorts Generator"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "browser-cookie3>=0.20.1",
+    "faster-whisper>=1.2.0",
+    "google-api-python-client>=2.185.0",
+    "google-auth-oauthlib>=1.2.2",
+    "google-genai>=1.46.0",
+    "pip>=25.2",
+    "python-dotenv>=1.1.1",
+    "pyyaml>=6.0.3",
+    "spacy>=3.8.7",
+    "torch>=2.9.0",
+    "yt-dlp>=2025.10.14",
+]
