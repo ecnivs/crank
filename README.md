@@ -26,7 +26,6 @@
 
 ## 🛠️ Prerequisites
 - Python 3.x (Tested with Python 3.13)
-- Required Python libraries (listed in `requirements.txt`)
 - `ffmpeg` and `ffprobe` installed and available in your system PATH (required for video processing)
 
 #### Environment Variables
