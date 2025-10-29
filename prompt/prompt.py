@@ -34,4 +34,14 @@ class Prompt:
         """
         output_lines = [f"{key}: {value}" for key, value in self.output_format.items()]
         output_section = "Provide output in this format: " + " ".join(output_lines)
-        return f"Topic: {query}\n\nTopics to avoid: {used_topics}\n\n{output_section}"
+        selection_note = (
+            "Note: For TRANSCRIPT, generate 3 candidate transcripts internally (A/B/C), "
+            "compare their hooks using the criteria provided, select the best, and "
+            "RETURN ONLY the chosen transcript."
+        )
+        return (
+            f"Topic: {query}\n\n"
+            f"Topics to avoid: {used_topics}\n\n"
+            f"{selection_note}\n\n"
+            f"{output_section}"
+        )
