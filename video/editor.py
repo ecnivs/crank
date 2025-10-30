@@ -113,8 +113,8 @@ class Editor:
             "-i",
             str(audio_path),
             "-filter_complex",
-            f"[0:v]scale=720:1280:force_original_aspect_ratio=decrease,"
-            f"pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black,ass={ass_path}[v]",
+            f"[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,"
+            f"pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,ass={ass_path}[v]",
             "-map",
             "[v]",
             "-map",
