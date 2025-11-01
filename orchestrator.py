@@ -124,9 +124,42 @@ class Orchestrator:
             match = re.search(pattern, text, re.DOTALL)
             result[key] = match.group(1).strip() if match else ""
 
+        if not result.get("transcript"):
+            transcript_pattern = r"^(Say\s+\w+:\s+.*?)(?=\n\s*(?:DESCRIPTION|SEARCH_TERM|TITLE|CATEGORY_ID):|$)"
+            transcript_match = re.search(
+                transcript_pattern, text, re.DOTALL | re.MULTILINE
+            )
+            if transcript_match:
+                result["transcript"] = transcript_match.group(1).strip()
+                self.logger.info(
+                    "Extracted transcript using fallback pattern (missing TRANSCRIPT: prefix)"
+                )
+            else:
+                first_label_pattern = (
+                    r"^(.*?)(?=\n\s*(?:DESCRIPTION|SEARCH_TERM|TITLE|CATEGORY_ID):|$)"
+                )
+                first_label_match = re.search(
+                    first_label_pattern, text, re.DOTALL | re.MULTILINE
+                )
+                if first_label_match:
+                    potential_transcript = first_label_match.group(1).strip()
+                    if "Say" in potential_transcript or len(potential_transcript) > 50:
+                        result["transcript"] = potential_transcript
+                        self.logger.info(
+                            "Extracted transcript from beginning of response (missing TRANSCRIPT: prefix)"
+                        )
+
         missing: List[str] = [k for k, v in result.items() if not v]
         if missing:
             self.logger.warning(f"Missing or empty fields: {missing}")
+            if "transcript" in missing:
+                self.logger.error(
+                    f"Failed to extract transcript. Raw response: {text[:500]}..."
+                )
+                raise ValueError(
+                    "Cannot proceed without transcript. Gemini response did not contain "
+                    "TRANSCRIPT: field and fallback extraction failed."
+                )
 
         video_path: Path = self._process_task(result)
         if self.uploader:
