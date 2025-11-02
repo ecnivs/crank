@@ -11,19 +11,17 @@ from typing import Optional, Union, Dict, Any
 
 
 class Uploader:
-    """
-    Handles uploading videos to YouTube using OAuth2 authentication.
-    """
+    """Handles uploading videos to YouTube using OAuth2 authentication."""
 
     def __init__(
         self, name: str = "crank", auth_token: Union[str, Path] = "secrets.json"
-    ):
+    ) -> None:
         """
-        Initialize the uploader and authenticate with YouTube API.
+        Initialize uploader and authenticate with YouTube API.
 
         Args:
-            name: Name of the channel/app used for token file naming.
-            auth_token: Path to the OAuth2 client secrets JSON.
+            name: Name of channel/app used for token file naming.
+            auth_token: Path to OAuth2 client secrets JSON.
         """
         self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
         self.name: str = name.replace(" ", "").lower()
@@ -41,9 +39,7 @@ class Uploader:
         self._authenticate()
 
     def _authenticate(self) -> None:
-        """
-        Try authenticating with stored token or via OAuth flow.
-        """
+        """Authenticate with stored token or via OAuth flow."""
         try:
             self._try_authenticate()
         except RefreshError:
@@ -58,9 +54,7 @@ class Uploader:
             ) from e
 
     def _try_authenticate(self) -> None:
-        """
-        Attempt authentication using stored credentials or OAuth flow.
-        """
+        """Attempt authentication using stored credentials or OAuth flow."""
         if self.token_file.exists() and not self.credentials:
             self.credentials = Credentials.from_authorized_user_file(
                 str(self.token_file), self.scopes
@@ -83,7 +77,9 @@ class Uploader:
 
         self.service = build("youtube", "v3", credentials=self.credentials)
 
-    def upload(self, video_data: Dict[str, Any]) -> Optional[datetime.datetime]:
+    def upload(
+        self, video_data: Dict[str, Any]
+    ) -> tuple[Optional[str], Optional[datetime.datetime]]:
         """
         Upload a video to YouTube.
 
@@ -97,8 +93,7 @@ class Uploader:
                 - last_upload: Last upload datetime (used for scheduling)
 
         Returns:
-            datetime.datetime: Scheduled or actual publish time if successful.
-            None: If the upload fails.
+            tuple[Optional[str], Optional[datetime.datetime]]: Video URL and scheduled time, or (None, None) on failure.
         """
         try:
             now = datetime.datetime.now(datetime.UTC)
@@ -135,13 +130,12 @@ class Uploader:
             )
             response = request.execute()
 
-            self.logger.info(
-                f"Uploaded successfully: https://www.youtube.com/watch?v={response['id']}"
-            )
-            return scheduled_publish_time
+            video_url = f"https://www.youtube.com/watch?v={response['id']}"
+            self.logger.info(f"Uploaded successfully: {video_url}")
+            return video_url, scheduled_publish_time
 
         except ResumableUploadError:
             raise
         except Exception as e:
             self.logger.error(f"Failed to upload: {e}")
-            return None
+            return None, None

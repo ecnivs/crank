@@ -2,25 +2,44 @@ import logging
 import random
 import time
 from google.genai import types
+from google import genai
 import wave
 import os
+from pathlib import Path
+from typing import Union, Dict, Optional, List
 
 
 class Gemini:
-    def __init__(self, client, workspace):
-        self.logger = logging.getLogger(self.__class__.__name__)
-        self.client = client
-        self.workspace = workspace
+    """Handles Gemini API interactions for text and audio generation."""
 
-        self.models = {
+    def __init__(self, client: genai.Client, workspace: Union[str, Path]) -> None:
+        """
+        Initialize Gemini client.
+
+        Args:
+            client: Google Gemini API client.
+            workspace: Directory for temporary files.
+        """
+        self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
+        self.client: genai.Client = client
+        self.workspace: Union[str, Path] = workspace
+        self.models: Dict[str, str] = {
             "2.5": "gemini-2.5-flash",
             "2.0": "gemini-2.0-flash",
         }
+        self.voice: str = "Alnilam"
 
-        self.voice = "Alnilam"
+    def _save_to_wav(self, pcm: bytes) -> str:
+        """
+        Save PCM audio data to WAV file.
 
-    def _save_to_wav(self, pcm):
-        path = os.path.join(self.workspace, "speech.wav")
+        Args:
+            pcm: Raw PCM audio bytes.
+
+        Returns:
+            str: Path to saved WAV file.
+        """
+        path = os.path.join(str(self.workspace), "speech.wav")
 
         with wave.open(path, "wb") as wf:
             wf.setnchannels(1)
@@ -29,7 +48,16 @@ class Gemini:
             wf.writeframes(pcm)
         return path
 
-    def get_audio(self, transcript):
+    def get_audio(self, transcript: str) -> str:
+        """
+        Generate speech audio from transcript using TTS.
+
+        Args:
+            transcript: Text to convert to speech.
+
+        Returns:
+            str: Path to generated audio file.
+        """
         try:
             if not transcript:
                 raise ValueError("Transcript must be a non-empty string")
@@ -65,15 +93,28 @@ class Gemini:
         except Exception as e:
             raise RuntimeError(f"Failed to generate audio: {e}") from e
 
-    def get_response(self, query, model, max_retries=3):
-        current_model = self.models.get(str(model))
+    def get_response(
+        self, query: str, model: Union[str, float], max_retries: int = 3
+    ) -> Optional[str]:
+        """
+        Generate text response from Gemini API with fallback retry logic.
+
+        Args:
+            query: Prompt string.
+            model: Model version (2.5 or 2.0).
+            max_retries: Maximum retry attempts per model.
+
+        Returns:
+            Optional[str]: Generated text or None if all attempts fail.
+        """
+        current_model: Optional[str] = self.models.get(str(model))
 
         if not current_model:
             self.logger.error(f"Model '{model}' not found in self.models")
             return None
 
-        models_priority = list(self.models.values())
-        start_index = models_priority.index(current_model)
+        models_priority: List[str] = list(self.models.values())
+        start_index: int = models_priority.index(current_model)
 
         for model_index in range(start_index, len(models_priority)):
             fallback_model = models_priority[model_index]
@@ -104,4 +145,4 @@ class Gemini:
                 f"Model {fallback_model} exhausted retries, trying fallback if available"
             )
 
-        raise Exception("All Gemini models failed after retries and fallbacks")
+        raise RuntimeError("All Gemini models failed after retries and fallbacks")

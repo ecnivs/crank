@@ -1,18 +1,16 @@
 from faster_whisper import WhisperModel
 import logging
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Union
 import torch
 
 
 class SpeechToText:
-    """
-    Wrapper for faster-whisper model to perform speech-to-text transcription.
-    """
+    """Wrapper for faster-whisper model to perform speech-to-text transcription."""
 
     def __init__(self, model_size: str) -> None:
         """
-        Initialize the faster-whisper model.
+        Initialize faster-whisper model.
 
         Args:
             model_size: Model size (e.g., 'tiny', 'base', 'small', 'medium', 'large-v2').
@@ -24,7 +22,7 @@ class SpeechToText:
             model_size, device=device, compute_type="float16"
         )
 
-    def transcribe(self, audio_path: Path | str) -> Dict[str, Any]:
+    def transcribe(self, audio_path: Union[Path, str]) -> Dict[str, Any]:
         """
         Transcribe an audio file into text with word-level timestamps.
 

@@ -88,7 +88,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         Returns:
             Path: Path to the generated ASS file.
         """
-        result: Dict = self.stt.transcribe(audio_path)
+        result: Dict[str, Any] = self.stt.transcribe(audio_path)
         path: Path = self.workspace / "captions.ass"
 
         with open(path, "w", encoding="utf-8") as f:

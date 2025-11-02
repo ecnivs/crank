@@ -1,39 +1,94 @@
 import datetime
-from google import genai
-from caption import Handler
-from response import Gemini
-from preset import YmlHandler
-from youtube import Uploader
-from media import Scraper
-from video import Editor
 from contextlib import contextmanager
+from typing import Generator
 import asyncio
 import logging
 import os
 import shutil
-import tempfile
-from dotenv import load_dotenv
-from pathlib import Path
-from argparse import ArgumentParser
-from orchestrator import Orchestrator
-from typing import Optional
 import sys
-
-# -------------------------------
-# Logging Configuration
-# -------------------------------
-logging.basicConfig(
-    level=logging.DEBUG, format="%(levelname)s - %(message)s", force=True
-)
+import tempfile
+from argparse import ArgumentParser
+from pathlib import Path
+from typing import Optional
+from dotenv import load_dotenv
 
 
-# -------------------------------
-# Temporary Workspace
-# -------------------------------
-@contextmanager
-def new_workspace():
+from utils.colors import Colors
+
+
+def setup_logging(log_file: Path = Path("crank.log")) -> None:
     """
-    Context manager that creates a temporary directory and cleans it up afterward.
+    Configure logging to file and console.
+
+    Args:
+        log_file: Path to log file.
+    """
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+
+    root_logger.setLevel(logging.DEBUG)
+
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setLevel(logging.DEBUG)
+    file_formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    file_handler.setFormatter(file_formatter)
+
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO)
+    console_formatter = logging.Formatter("%(message)s")
+    console_handler.setFormatter(console_formatter)
+
+    class ConsoleFilter(logging.Filter):
+        def filter(self, record):
+            important_modules = ["Core", "Orchestrator"]
+            if any(module in record.name for module in important_modules):
+                if record.levelno >= logging.INFO:
+                    return True
+            return False
+
+    console_handler.addFilter(ConsoleFilter())
+
+    root_logger.addHandler(file_handler)
+    root_logger.addHandler(console_handler)
+
+
+from preset import YmlHandler
+
+
+def get_channel_name_from_preset(path: str) -> str:
+    """
+    Read channel name from preset file.
+
+    Args:
+        path: Path to preset YAML file.
+
+    Returns:
+        str: Channel name or default "crank".
+    """
+    preset = YmlHandler(Path(path))
+    return preset.get("NAME", "crank")
+
+
+from google import genai
+from caption import Handler
+from response import Gemini
+from youtube import Uploader
+from media import Scraper
+from video import Editor
+from orchestrator import Orchestrator
+
+
+@contextmanager
+def new_workspace() -> Generator[str, None, None]:
+    """
+    Create temporary workspace directory.
+
+    Yields:
+        str: Path to temporary directory.
     """
     temp_dir = tempfile.mkdtemp()
     try:
@@ -42,26 +97,34 @@ def new_workspace():
         shutil.rmtree(temp_dir)
 
 
+def print_banner() -> None:
+    """Print application banner."""
+    banner = f"""{Colors.CYAN}
+ ██████╗██████╗  █████╗ ███╗   ██╗██╗  ██╗
+██╔════╝██╔══██╗██╔══██╗████╗  ██║██║ ██╔╝
+██║     ██████╔╝███████║██╔██╗ ██║█████╔╝ 
+██║     ██╔══██╗██╔══██║██║╚██╗██║██╔═██╗ 
+╚██████╗██║  ██║██║  ██║██║ ╚████║██║  ██╗
+ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝{Colors.RESET}
+    by ecnivs ~ automate your shorts :3
+                v0.1.0
+    """
+    print(banner)
+
+
 class Core:
-    """
-    Main class that wires together the entire pipeline.
-    """
+    """Main application controller."""
 
     def __init__(self, workspace: str, path: str) -> None:
-        """
-        Initialize all modules and orchestrator.
-
-        Args:
-            workspace: Path to temporary workspace.
-            path: Path to YAML configuration file.
-        """
         self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
         self.is_running: bool = True
 
         self.workspace: Path = Path(workspace)
-        self.logger.info(f"Temporary workspace: {workspace}")
+        self.logger.debug(f"Temporary workspace: {workspace}")
 
-        self.preset: YmlHandler = YmlHandler(Path(path))
+        self.preset_path: str = path
+        self.preset: YmlHandler = YmlHandler(Path(self.preset_path))
+        self.channel_name = self.preset.get("NAME", "crank")
         self.client: genai.Client = genai.Client(
             api_key=(
                 self.preset.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
@@ -90,13 +153,13 @@ class Core:
 
     def _time_left(self, num_hours: int = 24) -> int:
         """
-        Calculate remaining cooldown time until next upload.
+        Calculate remaining cooldown time in seconds.
 
         Args:
             num_hours: Cooldown period in hours.
 
         Returns:
-            int: Seconds remaining until next upload. Zero if ready.
+            int: Remaining seconds until cooldown expires.
         """
         limit_time = self.preset.get("LIMIT_TIME")
         if not limit_time:
@@ -109,62 +172,99 @@ class Core:
         return int(max((hours - elapsed).total_seconds(), 0))
 
     async def run(self) -> None:
-        """
-        Main loop: continuously generate and upload videos based on prompts.
-        """
+        """Main application loop for processing prompts."""
+        print_banner()
+
         while self.is_running:
             try:
                 if self.uploader:
                     time_left = self._time_left(num_hours=24)
-                    while time_left > 0:
-                        hours, minutes, seconds = (
-                            time_left // 3600,
-                            (time_left % 3600) // 60,
-                            time_left % 60,
-                        )
+                    if time_left > 0:
                         print(
-                            f"\r[{self.preset.get('NAME')}] Crank will continue in {hours}h {minutes}m {seconds}s",
-                            end="",
+                            f"\n{Colors.YELLOW}Upload cooldown active...{Colors.RESET}"
                         )
-                        await asyncio.sleep(1)
-                        time_left -= 1
+                        while time_left > 0:
+                            hours, minutes, seconds = (
+                                time_left // 3600,
+                                (time_left % 3600) // 60,
+                                time_left % 60,
+                            )
+                            print(
+                                f"\r{Colors.DIM}Waiting: {hours:02d}h {minutes:02d}m {seconds:02d}s remaining{Colors.RESET}",
+                                end="",
+                                flush=True,
+                            )
+                            await asyncio.sleep(1)
+                            time_left -= 1
+                        print("\n")
 
                 prompt: Optional[str] = self.preset.get("PROMPT")
-                if not prompt:
-                    prompt = input("Prompt -> ")
+                if prompt:
+                    print(
+                        f"\n{Colors.WHITE}({self.channel_name}) >>>{Colors.RESET} {Colors.YELLOW}Prompt imported from {self.preset_path}{Colors.RESET}"
+                    )
+                    print()
+                else:
+                    prompt = input(
+                        f"\n{Colors.WHITE}({self.channel_name}) >>>{Colors.RESET} "
+                    ).strip()
+                    if not prompt:
+                        print(
+                            f"{Colors.YELLOW}No prompt provided, skipping...{Colors.RESET}"
+                        )
+                        continue
+                    print()
 
                 await self.orchestrator.process(prompt)
-                await asyncio.sleep(0.01)
 
             except RuntimeError as e:
-                self.logger.critical(e)
+                self.logger.critical(f"Runtime error: {e}", exc_info=True)
+                print(
+                    f"\n{Colors.RED}ERR {e}{Colors.RESET}\n"
+                )
                 self.is_running = False
                 return
             except KeyboardInterrupt:
                 self.is_running = False
-                return
+                print()
+                raise
             except Exception as e:
-                self.logger.error(e)
+                self.logger.error(f"Error during processing: {e}", exc_info=True)
+                print(
+                    f"\n{Colors.RED}ERR {e}{Colors.RESET}\n"
+                )
                 await asyncio.sleep(1)
 
 
 if __name__ == "__main__":
     load_dotenv()
 
-    parser = ArgumentParser()
-    parser.add_argument("--path", help="Path to config.yml", default="preset.yml")
+    parser = ArgumentParser(description="Crank - Automated YouTube Shorts Generator")
+    parser.add_argument(
+        "--path", help="Path to config.yml", default="preset.yml", type=str
+    )
     args = parser.parse_args()
     path: str = args.path
+
+    channel_name = get_channel_name_from_preset(path)
+    log_file = Path(f"{channel_name}.log")
+    setup_logging(log_file)
 
     try:
         with new_workspace() as workspace:
             core = Core(workspace, path)
             asyncio.run(core.run())
     except KeyboardInterrupt:
+        print(
+            f"\n{Colors.GREEN}OK{Colors.RESET} {Colors.WHITE}Exiting cleanly...{Colors.RESET}\n"
+        )
         logging.info("Interrupted by user. Exiting cleanly...")
         sys.exit(0)
     except SystemExit:
         raise
     except Exception as e:
-        logging.critical(f"Fatal Error: {e}")
+        logging.critical(f"Fatal Error: {e}", exc_info=True)
+        print(
+            f"\n{Colors.RED}ERR {e}{Colors.RESET}\n"
+        )
         sys.exit(1)

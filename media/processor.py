@@ -5,13 +5,13 @@ from typing import List, Tuple
 
 def get_video_duration(path: Path) -> float:
     """
-    Get the duration of a video using ffprobe.
+    Get duration of video using ffprobe.
 
     Args:
-        path: Path to the video file.
+        path: Path to video file.
 
     Returns:
-        float: Duration of the video in seconds.
+        float: Duration in seconds.
     """
     cmd: List[str] = [
         "ffprobe",
@@ -23,7 +23,9 @@ def get_video_duration(path: Path) -> float:
         "default=noprint_wrappers=1:nokey=1",
         str(path),
     ]
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    result = subprocess.run(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
     return float(result.stdout.strip())
 
 
@@ -32,7 +34,7 @@ def probe_scene_cuts(input_src: str, scene_threshold: float = 0.35) -> List[floa
     Use ffmpeg to detect scene change timestamps.
 
     Args:
-        input_src: Path or URL to the video source.
+        input_src: Path or URL to video source.
         scene_threshold: Threshold for scene detection.
 
     Returns:
@@ -51,7 +53,9 @@ def probe_scene_cuts(input_src: str, scene_threshold: float = 0.35) -> List[floa
         "-",
     ]
     try:
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        proc = subprocess.run(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
     except Exception:
         return []
     cuts: List[float] = []
@@ -67,10 +71,10 @@ def probe_scene_cuts(input_src: str, scene_threshold: float = 0.35) -> List[floa
 
 def band_edge_score(input_src: str, start: float, duration: float, band: str) -> float:
     """
-    Estimate text/overlay presence in a given vertical band by measuring edge activity.
+    Estimate text/overlay presence in vertical band by measuring edge activity.
 
     Args:
-        input_src: Path or URL to the video source.
+        input_src: Path or URL to video source.
         start: Start time in seconds.
         duration: Duration to sample in seconds.
         band: Vertical band to sample ("top", "mid", or "bottom").
@@ -100,7 +104,9 @@ def band_edge_score(input_src: str, start: float, duration: float, band: str) ->
         "-",
     ]
     try:
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        proc = subprocess.run(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
     except Exception:
         return 0.0
     values: List[float] = []
@@ -116,14 +122,15 @@ def band_edge_score(input_src: str, start: float, duration: float, band: str) ->
     return sum(values) / len(values)
 
 
-def choose_best_window(input_src: str, duration: float, target: float = 60.0) -> Tuple[float, float, float]:
+def choose_best_window(
+    input_src: str, duration: float, target: float = 60.0
+) -> Tuple[float, float, float]:
     """
-    Choose the best start time for a target-duration window based on
-    distance from scene cuts and minimal text band score.
+    Choose best start time for target-duration window based on scene cuts and text scores.
 
     Args:
-        input_src: Path or URL to the video source.
-        duration: Total duration of the source video.
+        input_src: Path or URL to video source.
+        duration: Total duration of source video.
         target: Target window duration in seconds.
 
     Returns:
@@ -183,12 +190,11 @@ def select_montage_segments(
     total_target: float = 60.0,
 ) -> List[Tuple[float, float]]:
     """
-    Select multiple short segments that together approximate
-    total_target seconds, avoiding scene boundaries and text-like overlays.
+    Select multiple short segments approximating total_target seconds.
 
     Args:
-        input_src: Path or URL to the video source.
-        duration: Total duration of the source video.
+        input_src: Path or URL to video source.
+        duration: Total duration of source video.
         max_segment_len: Maximum length of each segment in seconds.
         total_target: Total target duration for all segments.
 
@@ -196,6 +202,7 @@ def select_montage_segments(
         List[Tuple[float, float]]: List of (start, end) tuples in seconds.
     """
     import random
+
     cuts = probe_scene_cuts(input_src)
 
     def is_near_cut(t: float) -> bool:
@@ -231,7 +238,7 @@ def select_montage_segments(
             _, start, end = candidates[0]
             if not segments or start >= segments[-1][1] - 0.1:
                 segments.append((start, end))
-                picked_time += (end - start)
+                picked_time += end - start
         i += 1
 
     trimmed: List[Tuple[float, float]] = []
@@ -253,19 +260,21 @@ def select_montage_segments(
 
 def process_to_short(input_path: Path, workspace: Path) -> Path:
     """
-    Process a downloaded video into a final 1080x1920 Short using montage segments.
+    Process downloaded video into final 1080x1920 Short using montage segments.
 
     Args:
-        input_path: Path to the input video file.
+        input_path: Path to input video file.
         workspace: Workspace directory for output.
 
     Returns:
-        Path: Path to the final processed video.
+        Path: Path to final processed video.
     """
     duration: float = get_video_duration(input_path)
     output_path: Path = workspace / f"{input_path.stem}_short.mp4"
 
-    segments = select_montage_segments(str(input_path), duration, max_segment_len=7.0, total_target=min(60.0, duration))
+    segments = select_montage_segments(
+        str(input_path), duration, max_segment_len=7.0, total_target=min(60.0, duration)
+    )
 
     total_seg_duration = sum(e - s for s, e in segments)
 
@@ -276,7 +285,9 @@ def process_to_short(input_path: Path, workspace: Path) -> Path:
         for loop_idx in range(loops_needed):
             for idx, (s, e) in enumerate(segments, start=1):
                 seg_label = f"[s{loop_idx}_{idx}]"
-                trim_parts.append(f"[0:v]trim=start={s:.3f}:end={e:.3f},setpts=PTS-STARTPTS{seg_label}")
+                trim_parts.append(
+                    f"[0:v]trim=start={s:.3f}:end={e:.3f},setpts=PTS-STARTPTS{seg_label}"
+                )
                 seg_labels.append(seg_label)
 
         concat_inputs = "".join(seg_labels)
@@ -313,7 +324,9 @@ def process_to_short(input_path: Path, workspace: Path) -> Path:
         seg_labels: List[str] = []
         for idx, (s, e) in enumerate(segments, start=1):
             seg_label = f"[s{idx}]"
-            trim_parts.append(f"[0:v]trim=start={s:.3f}:end={e:.3f},setpts=PTS-STARTPTS{seg_label}")
+            trim_parts.append(
+                f"[0:v]trim=start={s:.3f}:end={e:.3f},setpts=PTS-STARTPTS{seg_label}"
+            )
             seg_labels.append(seg_label)
 
         concat_inputs = "".join(seg_labels)

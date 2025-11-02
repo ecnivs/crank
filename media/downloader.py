@@ -7,13 +7,31 @@ from . import processor as vp
 
 
 class Downloader:
+    """Handles video downloading with yt-dlp."""
+
     def __init__(self, workspace: Path, cookies_file: Optional[Path] = None) -> None:
+        """
+        Initialize downloader with workspace and optional cookies.
+
+        Args:
+            workspace: Directory for downloaded files.
+            cookies_file: Optional path to cookies file.
+        """
         self.workspace: Path = workspace
         self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
         self.workspace.mkdir(exist_ok=True)
         self.cookies_file: Optional[Path] = cookies_file
 
     def _select_stream_url(self, meta: Dict[str, Any]) -> Optional[str]:
+        """
+        Select best stream URL from metadata.
+
+        Args:
+            meta: yt-dlp metadata dictionary.
+
+        Returns:
+            Optional[str]: Best stream URL or None.
+        """
         formats: List[Dict[str, Any]] = meta.get("formats", []) or []
         best_under_720: Tuple[int, str] = (0, "")
         best_any: Tuple[int, str] = (0, "")
@@ -34,7 +52,20 @@ class Downloader:
                 best_any = (score, url)
         return (best_under_720[1] or best_any[1]) or None
 
-    def download_section(self, url: str, meta: Dict[str, Any], cookies_file: Optional[Path]) -> Path:
+    def download_section(
+        self, url: str, meta: Dict[str, Any], cookies_file: Optional[Path]
+    ) -> Path:
+        """
+        Download video section using yt-dlp.
+
+        Args:
+            url: YouTube video URL.
+            meta: Video metadata dictionary.
+            cookies_file: Optional cookies file path.
+
+        Returns:
+            Path: Path to downloaded video file.
+        """
         outtmpl: str = str(self.workspace / "%(id)s.%(ext)s")
         format_spec: str = (
             "bestvideo[height<=720][height>=480][ext=mp4]/"
@@ -74,7 +105,9 @@ class Downloader:
         if duration > 0:
             try:
                 self.logger.info("Selecting best window for candidate 1/1")
-                start_time, end_time, _ = vp.choose_best_window(probe_url, duration, 60.0)
+                start_time, end_time, _ = vp.choose_best_window(
+                    probe_url, duration, 60.0
+                )
             except Exception as e:
                 self.logger.debug(f"Window selection failed, using default: {e}")
 
@@ -86,5 +119,3 @@ class Downloader:
                 video_path = video_path.with_suffix(".mp4")
             self.logger.info(f"Accepted video: {video_path}")
             return video_path
-
-

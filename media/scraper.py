@@ -5,35 +5,61 @@ from typing import Optional, List, Dict, Any, Tuple
 import yt_dlp
 from . import processor as media_processor
 import browser_cookie3
+import sys
+import os
+
+
+class NullLogger:
+    """Null logger to suppress yt-dlp output."""
+
+    def debug(self, msg: object) -> None:
+        pass
+
+    def info(self, msg: object) -> None:
+        pass
+
+    def warning(self, msg: object) -> None:
+        pass
+
+    def error(self, msg: object) -> None:
+        pass
+
+    def critical(self, msg: object) -> None:
+        pass
+
+    def isEnabledFor(self, level: int) -> bool:
+        return False
+
+
+yt_dlp_logger = logging.getLogger("yt_dlp")
+yt_dlp_logger.setLevel(logging.CRITICAL)
+yt_dlp_logger.disabled = True
 
 
 class Scraper:
-    """
-    Handles video scraping, downloading, clipping, and cookie management for YouTube.
-    Automatically exports browser cookies to bypass bot detection.
-    """
+    """Handles video scraping, downloading, clipping, and cookie management."""
 
     def __init__(self, workspace: Path, cookies_file: Optional[Path] = None) -> None:
         """
-        Initialize the scraper with a workspace and optional cookies file.
+        Initialize scraper with workspace and optional cookies file.
 
         Args:
             workspace: Directory to store downloaded videos and temporary files.
-            cookies_file: Optional path to a cookies.txt file. If None, cookies are auto-exported.
+            cookies_file: Optional path to cookies.txt file. If None, cookies are auto-exported.
         """
         self.workspace: Path = workspace
         self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
         self.workspace.mkdir(exist_ok=True)
 
         self.cookies_file: Path = cookies_file or self._export_cookies_from_browser()
-        self._last_cookie_refresh = None
+        self._last_cookie_refresh: Optional[float] = None
 
     def _export_cookies_from_browser(self) -> Path:
         """
-        Export YouTube cookies from installed browsers into a Mozilla-compatible cookies.txt file.
+        Export YouTube cookies from installed browsers.
 
         Returns:
-            Path: Path to the saved cookies file.
+            Path: Path to saved cookies file.
         """
         path: Path = self.workspace / "cookies.txt"
         cj: MozillaCookieJar = MozillaCookieJar(str(path))
@@ -55,9 +81,7 @@ class Scraper:
         return path
 
     def _refresh_cookies_if_needed(self) -> None:
-        """
-        Refresh cookies if they are older than 1 hour or don't exist.
-        """
+        """Refresh cookies if older than 1 hour or missing."""
         import time
 
         if (
@@ -110,6 +134,7 @@ class Scraper:
         ]
 
         import re
+
         base = re.sub(r"[^\w\s]", " ", query).strip()
 
         strong = f"{base} " + " ".join(positive_modifiers + negative_modifiers)
@@ -128,6 +153,7 @@ class Scraper:
             List[str]: Unique keywords of length >= 4.
         """
         import re
+
         base = re.sub(r"[^\w\s]", " ", query).lower()
         tokens = [t for t in base.split() if len(t) >= 4]
         seen: set = set()
@@ -247,6 +273,7 @@ class Scraper:
         try:
             views = float(entry.get("view_count") or 0)
             import math
+
             score += min(3.0, math.log10(views + 1.0))
         except Exception:
             pass
@@ -283,7 +310,9 @@ class Scraper:
                 best_any = (score, url)
         return (best_under_720[1] or best_any[1]) or None
 
-    def _is_text_heavy(self, input_src: str, duration: float, threshold: float = 22.0) -> bool:
+    def _is_text_heavy(
+        self, input_src: str, duration: float, threshold: float = 22.0
+    ) -> bool:
         """
         Determine if the video likely contains persistent burned-in text/overlays.
 
@@ -296,7 +325,9 @@ class Scraper:
             bool: True if text overlays are detected above threshold.
         """
         target = min(60.0, duration)
-        start, end, sub_score = media_processor.choose_best_window(input_src, duration, target)
+        start, end, sub_score = media_processor.choose_best_window(
+            input_src, duration, target
+        )
         return sub_score > threshold
 
     def _download_video(self, query: str, max_results: int = 10) -> Path:
@@ -314,9 +345,11 @@ class Scraper:
 
         ydl_opts_search = {
             "quiet": True,
+            "no_warnings": True,
             "extract_flat": True,
             "skip_download": True,
             "cookiefile": str(self.cookies_file),
+            "logger": NullLogger(),
             "http_headers": {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
                 "Referer": "https://www.youtube.com/",
@@ -333,39 +366,58 @@ class Scraper:
 
         entries: List[Dict[str, Any]] = []
         tried: List[str] = []
-        with yt_dlp.YoutubeDL(ydl_opts_search) as ydl:
-            for q in query_variants:
-                search_url: str = f"ytsearch{max_results}:{q}"
-                tried.append(q)
-                try:
-                    info: dict = ydl.extract_info(search_url, download=False)
-                    entries = [
-                        e for e in info.get("entries", []) if e.get("id") and len(e.get("id", "")) == 11
-                    ]
-                    if entries:
-                        self.logger.info(f"Found {len(entries)} candidates for query variant")
-                        break
-                except Exception as e:
-                    self.logger.debug(f"Search failed for variant '{q}': {e}")
-                    continue
+        old_stderr = sys.stderr
+        try:
+            sys.stderr = open(os.devnull, "w")
+            with yt_dlp.YoutubeDL(ydl_opts_search) as ydl:
+                for q in query_variants:
+                    search_url: str = f"ytsearch{max_results}:{q}"
+                    tried.append(q)
+                    try:
+                        info: dict = ydl.extract_info(search_url, download=False)
+                        entries = [
+                            e
+                            for e in info.get("entries", [])
+                            if e.get("id") and len(e.get("id", "")) == 11
+                        ]
+                        if entries:
+                            self.logger.info(
+                                f"Found {len(entries)} candidates for query variant"
+                            )
+                            break
+                    except Exception as e:
+                        self.logger.debug(f"Search failed for variant '{q}': {e}")
+                        continue
+        finally:
+            sys.stderr.close()
+            sys.stderr = old_stderr
 
         if not entries:
             raise ValueError(
-                "No results found for query: " + (query_variants[0] if query_variants else query)
+                "No results found for query: "
+                + (query_variants[0] if query_variants else query)
             )
 
         detailed: List[Dict[str, Any]] = []
-        with yt_dlp.YoutubeDL({**ydl_opts_search, "extract_flat": False}) as ydl:
-            for idx, e in enumerate(entries[: max_results], start=1):
-                url = f"https://www.youtube.com/watch?v={e['id']}"
-                try:
-                    self.logger.info(f"Fetching metadata {idx}/{min(len(entries), max_results)}: {url}")
-                    meta = ydl.extract_info(url, download=False)
-                    if meta:
-                        detailed.append(meta)
-                except Exception as e:
-                    self.logger.debug(f"Metadata fetch failed for {url}: {e}")
-                    continue
+        old_stderr = sys.stderr
+        try:
+            sys.stderr = open(os.devnull, "w")
+            with yt_dlp.YoutubeDL({**ydl_opts_search, "extract_flat": False}) as ydl:
+                for idx, e in enumerate(entries[:max_results], start=1):
+                    url = f"https://www.youtube.com/watch?v={e['id']}"
+                    try:
+                        self.logger.info(
+                            f"Fetching metadata {idx}/{min(len(entries), max_results)}: {url}"
+                        )
+                        meta = ydl.extract_info(url, download=False)
+                        if meta:
+                            detailed.append(meta)
+                    except Exception as e:
+                        self.logger.debug(f"Metadata fetch failed for {url}: {e}")
+                        continue
+        finally:
+            sys.stderr.close()
+            sys.stderr = old_stderr
 
         if not detailed:
             raise ValueError("Failed to retrieve metadata for candidates")
@@ -375,7 +427,9 @@ class Scraper:
             relevant = [d for d in detailed if self._relevance_score(d, keywords) >= 1]
             if relevant:
                 detailed = relevant
-                self.logger.info(f"Filtered to {len(detailed)} relevant candidates using keywords: {keywords}")
+                self.logger.info(
+                    f"Filtered to {len(detailed)} relevant candidates using keywords: {keywords}"
+                )
 
         def _combined_key(d: Dict[str, Any]) -> Tuple[int, float]:
             return (self._relevance_score(d, keywords), self._score_entry(d))
@@ -397,6 +451,7 @@ class Scraper:
             "format": format_spec,
             "cookiefile": str(self.cookies_file),
             "quiet": True,
+            "no_warnings": True,
             "http_headers": {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -422,18 +477,25 @@ class Scraper:
 
         max_try = min(len(ranked), 4)
         for i, meta in enumerate(ranked[:max_try]):
-            url = meta.get("webpage_url") or f"https://www.youtube.com/watch?v={meta.get('id')}"
+            url = (
+                meta.get("webpage_url")
+                or f"https://www.youtube.com/watch?v={meta.get('id')}"
+            )
             probe_url = self._select_stream_url(meta) or url
             vid_duration = float(meta.get("duration") or 0)
             if vid_duration <= 0:
                 try:
-                    vid_duration = self._get_video_duration(Path(url))
+                    import media.processor as media_processor
+
+                    vid_duration = media_processor.get_video_duration(Path(url))
                 except Exception:
                     vid_duration = 0
 
             try:
                 if vid_duration > 0 and self._is_text_heavy(probe_url, vid_duration):
-                    self.logger.info(f"Skipping {url} due to detected on-screen text overlays")
+                    self.logger.info(
+                        f"Skipping {url} due to detected on-screen text overlays"
+                    )
                     continue
             except Exception as check_err:
                 self.logger.debug(f"Subtitle pre-check failed: {check_err}")
@@ -441,20 +503,31 @@ class Scraper:
             start_time, end_time, _ = (0.0, 60.0, 0.0)
             if vid_duration > 0:
                 try:
-                    self.logger.info(f"Selecting best window for candidate {i+1}/{max_try}")
-                    start_time, end_time, _ = media_processor.choose_best_window(probe_url, vid_duration, 60.0)
+                    self.logger.info(
+                        f"Selecting best window for candidate {i + 1}/{max_try}"
+                    )
+                    start_time, end_time, _ = media_processor.choose_best_window(
+                        probe_url, vid_duration, 60.0
+                    )
                 except Exception as win_err:
-                    self.logger.debug(f"Window selection failed, using default: {win_err}")
+                    self.logger.debug(
+                        f"Window selection failed, using default: {win_err}"
+                    )
 
             strategies = [
-                ("original", ydl_opts_download),
-                ("no_cookies", {**ydl_opts_download, "cookiefile": None}),
+                ("original", {**ydl_opts_download, "logger": NullLogger()}),
+                (
+                    "no_cookies",
+                    {**ydl_opts_download, "cookiefile": None, "logger": NullLogger()},
+                ),
                 (
                     "no_headers_primary",
                     {
                         "outtmpl": output_template,
                         "format": "best[ext=mp4]/best",
                         "quiet": True,
+                        "no_warnings": True,
+                        "logger": NullLogger(),
                         "cookiefile": str(self.cookies_file),
                     },
                 ),
@@ -464,6 +537,8 @@ class Scraper:
                         "outtmpl": output_template,
                         "format": "best[ext=mp4]/best",
                         "quiet": True,
+                        "no_warnings": True,
+                        "logger": NullLogger(),
                         "http_headers": ydl_opts_download["http_headers"],
                     },
                 ),
@@ -475,38 +550,60 @@ class Scraper:
                         f"Attempting to download video {i + 1}/{len(ranked)} with {strategy_name} strategy: {url}"
                     )
                     section = f"*{max(0.0, start_time):.3f}-{max(0.0, end_time):.3f}"
-                    dl_stats: Dict[str, Any] = {"downloaded_bytes": 0, "total_bytes": None}
+                    dl_stats: Dict[str, Any] = {
+                        "downloaded_bytes": 0,
+                        "total_bytes": None,
+                    }
+                    opts["logger"] = NullLogger()
+                    opts["quiet"] = True
+                    opts["no_warnings"] = True
 
                     def _hook(d: Dict[str, Any]) -> None:
                         if d.get("status") == "downloading":
                             val = d.get("downloaded_bytes")
                             if isinstance(val, (int, float)):
-                                dl_stats["downloaded_bytes"] = max(dl_stats["downloaded_bytes"], int(val))
+                                dl_stats["downloaded_bytes"] = max(
+                                    dl_stats["downloaded_bytes"], int(val)
+                                )
                             if isinstance(d.get("total_bytes"), (int, float)):
                                 dl_stats["total_bytes"] = int(d["total_bytes"])  # type: ignore[index]
-                            elif isinstance(d.get("total_bytes_estimate"), (int, float)):
+                            elif isinstance(
+                                d.get("total_bytes_estimate"), (int, float)
+                            ):
                                 dl_stats["total_bytes"] = int(d["total_bytes_estimate"])  # type: ignore[index]
 
-                    with yt_dlp.YoutubeDL({**opts, "download_sections": section, "progress_hooks": [_hook]}) as ydl:
-                        info = ydl.extract_info(url, download=True)
-                        video_path: Path = Path(ydl.prepare_filename(info))
-                        if video_path.suffix != ".mp4":
-                            video_path = video_path.with_suffix(".mp4")
+                    old_stderr = sys.stderr
+                    try:
+                        sys.stderr = open(os.devnull, "w")
+                        with yt_dlp.YoutubeDL(
+                            {
+                                **opts,
+                                "download_sections": section,
+                                "progress_hooks": [_hook],
+                            }
+                        ) as ydl:
+                            info = ydl.extract_info(url, download=True)
+                            video_path: Path = Path(ydl.prepare_filename(info))
+                            if video_path.suffix != ".mp4":
+                                video_path = video_path.with_suffix(".mp4")
                         try:
                             bytes_dl = int(dl_stats.get("downloaded_bytes") or 0)
                             total = dl_stats.get("total_bytes")
                             if isinstance(total, int) and total > 0:
                                 pct = (bytes_dl / total) * 100
                                 self.logger.info(
-                                    f"Accepted video: {video_path} | downloaded ~{bytes_dl/1_000_000:.2f} MB (~{pct:.1f}% of stream)"
+                                    f"Accepted video: {video_path} | downloaded ~{bytes_dl / 1_000_000:.2f} MB (~{pct:.1f}% of stream)"
                                 )
                             else:
                                 self.logger.info(
-                                    f"Accepted video: {video_path} | downloaded ~{bytes_dl/1_000_000:.2f} MB"
+                                    f"Accepted video: {video_path} | downloaded ~{bytes_dl / 1_000_000:.2f} MB"
                                 )
                         except Exception:
                             self.logger.info(f"Accepted video: {video_path}")
                         return video_path
+                    finally:
+                        sys.stderr.close()
+                        sys.stderr = old_stderr
 
                 except Exception as e:
                     error_msg = str(e)
@@ -516,15 +613,32 @@ class Scraper:
                         )
                         try:
                             self._export_cookies_from_browser()
-                            with yt_dlp.YoutubeDL({**opts, "download_sections": section}) as ydl2:
-                                info = ydl2.extract_info(url, download=True)
-                                video_path: Path = Path(ydl2.prepare_filename(info))
-                                if video_path.suffix != ".mp4":
-                                    video_path = video_path.with_suffix(".mp4")
-                                self.logger.info(f"Accepted video after cookie refresh: {video_path}")
-                                return video_path
+                            opts_retry = {
+                                **opts,
+                                "download_sections": section,
+                                "logger": NullLogger(),
+                                "quiet": True,
+                                "no_warnings": True,
+                            }
+                            old_stderr2 = sys.stderr
+                            try:
+                                sys.stderr = open(os.devnull, "w")
+                                with yt_dlp.YoutubeDL(opts_retry) as ydl2:
+                                    info = ydl2.extract_info(url, download=True)
+                                    video_path: Path = Path(ydl2.prepare_filename(info))
+                                    if video_path.suffix != ".mp4":
+                                        video_path = video_path.with_suffix(".mp4")
+                                    self.logger.info(
+                                        f"Accepted video after cookie refresh: {video_path}"
+                                    )
+                                    return video_path
+                            finally:
+                                sys.stderr.close()
+                                sys.stderr = old_stderr2
                         except Exception as e2:
-                            self.logger.warning(f"Retry after cookie refresh failed: {e2}")
+                            self.logger.warning(
+                                f"Retry after cookie refresh failed: {e2}"
+                            )
                     elif "format is not available" in error_msg:
                         self.logger.warning(
                             f"Format not available with {strategy_name} strategy for {url}: {e}"
@@ -535,7 +649,9 @@ class Scraper:
                         )
                     continue
 
-        self.logger.warning("All primary strategies failed, trying final fallback approaches...")
+        self.logger.warning(
+            "All primary strategies failed, trying final fallback approaches..."
+        )
 
         final_fallbacks = [
             (
@@ -544,6 +660,8 @@ class Scraper:
                     "outtmpl": output_template,
                     "format": "best",
                     "quiet": True,
+                    "no_warnings": True,
+                    "logger": NullLogger(),
                 },
             ),
             (
@@ -552,6 +670,8 @@ class Scraper:
                     "outtmpl": output_template,
                     "format": "best[ext=mp4]/best",
                     "quiet": True,
+                    "no_warnings": True,
+                    "logger": NullLogger(),
                     "cookiefile": str(self.cookies_file),
                 },
             ),
@@ -559,18 +679,34 @@ class Scraper:
 
         for fallback_name, opts in final_fallbacks:
             try:
-                first_url = ranked[0].get("webpage_url") or f"https://www.youtube.com/watch?v={ranked[0].get('id')}"
-                self.logger.info(f"Trying final fallback: {fallback_name} for {first_url}")
+                first_url = (
+                    ranked[0].get("webpage_url")
+                    or f"https://www.youtube.com/watch?v={ranked[0].get('id')}"
+                )
+                self.logger.info(
+                    f"Trying final fallback: {fallback_name} for {first_url}"
+                )
                 section = f"*{max(0.0, start_time):.3f}-{max(0.0, end_time):.3f}"
-                with yt_dlp.YoutubeDL({**opts, "download_sections": section}) as ydl:
-                    info = ydl.extract_info(first_url, download=True)
-                    video_path: Path = Path(ydl.prepare_filename(info))
-                    if video_path.suffix != ".mp4":
-                        video_path = video_path.with_suffix(".mp4")
-                    self.logger.info(
-                        f"Successfully downloaded video with {fallback_name} fallback: {video_path}"
-                    )
-                    return video_path
+                opts["logger"] = NullLogger()
+                opts["quiet"] = True
+                opts["no_warnings"] = True
+                old_stderr = sys.stderr
+                try:
+                    sys.stderr = open(os.devnull, "w")
+                    with yt_dlp.YoutubeDL(
+                        {**opts, "download_sections": section}
+                    ) as ydl:
+                        info = ydl.extract_info(first_url, download=True)
+                        video_path: Path = Path(ydl.prepare_filename(info))
+                        if video_path.suffix != ".mp4":
+                            video_path = video_path.with_suffix(".mp4")
+                        self.logger.info(
+                            f"Successfully downloaded video with {fallback_name} fallback: {video_path}"
+                        )
+                        return video_path
+                finally:
+                    sys.stderr.close()
+                    sys.stderr = old_stderr
 
             except Exception as e:
                 self.logger.warning(f"Final fallback {fallback_name} also failed: {e}")
@@ -581,28 +717,27 @@ class Scraper:
             f"Unable to download any video for query: {query}. All attempts failed."
         )
 
-
     def _clip_video(self, input_path: Path) -> Path:
         """
-        Delegate video processing to media.processor to build the final 1080x1920 short.
+        Process video to build final 1080x1920 short.
 
         Args:
-            input_path: Path to the input video.
+            input_path: Path to input video.
 
         Returns:
-            Path: Path to the clipped video.
+            Path: Path to clipped video.
         """
         return media_processor.process_to_short(input_path, self.workspace)
 
     def get_media(self, term: str) -> Path:
         """
-        Search, download, clip, and return path to the short video.
+        Search, download, clip, and return path to short video.
 
         Args:
             term: Search term for YouTube video content.
 
         Returns:
-            Path: Path to the final clipped video.
+            Path: Path to final clipped video.
         """
         video_path: Path = self._download_video(term)
         short_path: Path = self._clip_video(video_path)

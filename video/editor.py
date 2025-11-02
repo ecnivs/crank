@@ -6,27 +6,24 @@ from typing import Union
 
 
 class Editor:
-    """
-    Handles assembling video from media, audio, and subtitles using FFmpeg.
-    Ensures proper scaling, padding, subtitle overlay, and duration limits.
-    """
+    """Handles assembling video from media, audio, and subtitles using FFmpeg."""
 
-    def __init__(self, workspace: Union[str, Path]):
+    def __init__(self, workspace: Union[str, Path]) -> None:
         """
-        Initialize the editor with a working directory.
+        Initialize editor with working directory.
 
         Args:
-            workspace: Path to the workspace folder for temporary files.
+            workspace: Path to workspace folder for temporary files.
         """
         self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
         self.workspace: Path = Path(workspace)
 
     def _get_duration(self, file_path: Union[str, Path]) -> float:
         """
-        Get the duration of a media file using FFprobe.
+        Get duration of media file using FFprobe.
 
         Args:
-            file_path: Path to the media/audio file.
+            file_path: Path to media/audio file.
 
         Returns:
             float: Duration in seconds.
@@ -69,15 +66,15 @@ class Editor:
         media_path: Union[str, Path],
     ) -> Path:
         """
-        Assemble a video from media, audio, and subtitle file.
+        Assemble video from media, audio, and subtitle file.
 
         Args:
-            ass_path: Path to the .ass subtitle file.
-            audio_path: Path to the audio file.
-            media_path: Path to the video/image file.
+            ass_path: Path to .ass subtitle file.
+            audio_path: Path to audio file.
+            media_path: Path to video/image file.
 
         Returns:
-            Path: Path to the generated output video.
+            Path: Path to generated output video.
         """
         ass_path, audio_path, media_path = (
             Path(ass_path),

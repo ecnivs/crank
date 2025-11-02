@@ -10,7 +10,7 @@ class YmlHandler:
 
     def __init__(self, path: Path) -> None:
         """
-        Initialize the handler with a YAML file path.
+        Initialize handler with YAML file path.
 
         Args:
             path: Path to YAML file.
@@ -23,7 +23,7 @@ class YmlHandler:
         Load the YAML file into memory.
 
         Returns:
-            Dictionary representing the YAML state.
+            Dict[str, Any]: Dictionary representing the YAML state.
         """
         if self.path.exists():
             with self.path.open("r", encoding="utf-8") as f:
@@ -31,9 +31,7 @@ class YmlHandler:
         return {}
 
     def save(self) -> None:
-        """
-        Persist the current state back to the YAML file.
-        """
+        """Persist current state back to YAML file."""
         with self.path.open("w", encoding="utf-8") as f:
             yaml.safe_dump(self.state, f, default_flow_style=False)
 
@@ -46,7 +44,7 @@ class YmlHandler:
             default: Default value if key does not exist.
 
         Returns:
-            Value from the state or default.
+            Any: Value from the state or default.
         """
         return self.state.get(key, default)
 

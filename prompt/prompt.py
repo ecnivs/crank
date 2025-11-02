@@ -9,9 +9,7 @@ class Prompt:
     """
 
     def __init__(self) -> None:
-        """
-        Initialize the Prompt handler and load template mappings from prompt.yml.
-        """
+        """Initialize prompt handler and load templates from prompt.yml."""
         self.prompts: YmlHandler = YmlHandler(Path("prompt.yml"))
 
         self.output_format: Dict[str, str] = {
@@ -22,12 +20,13 @@ class Prompt:
             "CATEGORY_ID": self.prompts.get("GET_CATEGORY_ID", ""),
         }
 
-    def build(self, query: str, used_topics: List) -> str:
+    def build(self, query: str, used_topics: List[str]) -> str:
         """
         Construct a prompt for the AI using the loaded templates.
 
         Args:
             query: Topic or keyword to generate content around.
+            used_topics: List of topics to avoid in generation.
 
         Returns:
             str: Formatted prompt including instructions for output format.

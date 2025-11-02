@@ -10,3 +10,4 @@ __pycache__/
 .configs/
 tokens/
 run.py
+*.log
