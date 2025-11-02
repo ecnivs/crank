@@ -1,9 +1,9 @@
-<h1 align="center">Crank</h1>
-<p align="center"><em>YouTube Shorts Generator</em></p>
+
 
 <div align="center">
 
-![484215357-2c272049-acc0-4b50-9b69-67c71cadf07e](https://github.com/user-attachments/assets/89e99b90-3396-44d4-b556-7de82734160b)
+<img width="1452" height="352" alt="crank" src="https://github.com/user-attachments/assets/bda075e8-8cb2-42c8-9e8b-6c7faa205774" />
+
 
 </div>
 
