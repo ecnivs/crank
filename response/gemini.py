@@ -9,6 +9,7 @@ import wave
 import os
 from pathlib import Path
 from typing import Union, Dict, Optional, List
+from utils.constants import GEMINI_MODELS, DEFAULT_VOICE
 
 
 class QuotaExceededError(RuntimeError):
@@ -31,11 +32,8 @@ class Gemini:
         self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
         self.client: genai.Client = client
         self.workspace: Union[str, Path] = workspace
-        self.models: Dict[str, str] = {
-            "2.5": "gemini-2.5-flash",
-            "2.0": "gemini-2.0-flash",
-        }
-        self.voice: str = "Alnilam"
+        self.models: Dict[str, str] = GEMINI_MODELS
+        self.voice: str = DEFAULT_VOICE
 
     def _extract_retry_delay(self, error: Exception) -> float:
         """

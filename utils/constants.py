@@ -48,6 +48,9 @@ DEFAULT_VOICE = "Alnilam"
 # Whisper model
 DEFAULT_WHISPER_MODEL = "small"
 
+# Default channel name
+DEFAULT_CHANNEL_NAME = "crank"
+
 # Video processing
 SCENE_THRESHOLD = 0.35
 MAX_SEGMENT_LENGTH = 7.0

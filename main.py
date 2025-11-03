@@ -16,6 +16,13 @@ from dotenv import load_dotenv
 
 
 from utils.colors import Colors
+from utils.constants import (
+    DEFAULT_CHANNEL_NAME,
+    DEFAULT_FONT,
+    DEFAULT_WHISPER_MODEL,
+    DEFAULT_SECRETS_FILE,
+    DEFAULT_PRESET_FILE,
+)
 
 
 def setup_logging(log_file: Path = Path("crank.log")) -> None:
@@ -69,7 +76,7 @@ def get_channel_name_from_preset(path: str) -> str:
         path: Path to preset YAML file.
 
     Returns:
-        str: Channel name or default "crank".
+        str: Channel name or default channel name.
     """
     try:
         preset_path = Path(path)
@@ -77,29 +84,29 @@ def get_channel_name_from_preset(path: str) -> str:
             print(
                 f"{Colors.YELLOW}Warning: Preset file {path} does not exist, using default channel name{Colors.RESET}"
             )
-            return "crank"
+            return DEFAULT_CHANNEL_NAME
         preset = YmlHandler(preset_path)
         channel_name = preset.get("NAME")
 
         if channel_name is None:
             print(
-                f"\n{Colors.YELLOW}Warning: No 'NAME' field found in preset file '{path}'. Using default channel name 'crank'.{Colors.RESET}\n"
+                f"\n{Colors.YELLOW}Warning: No 'NAME' field found in preset file '{path}'. Using default channel name '{DEFAULT_CHANNEL_NAME}'.{Colors.RESET}\n"
             )
-            return "crank"
+            return DEFAULT_CHANNEL_NAME
 
         channel_name_str = str(channel_name).strip()
         if not channel_name_str:
             print(
-                f"\n{Colors.YELLOW}Warning: 'NAME' field in preset file '{path}' is empty. Using default channel name 'crank'.{Colors.RESET}\n"
+                f"\n{Colors.YELLOW}Warning: 'NAME' field in preset file '{path}' is empty. Using default channel name '{DEFAULT_CHANNEL_NAME}'.{Colors.RESET}\n"
             )
-            return "crank"
+            return DEFAULT_CHANNEL_NAME
 
         return channel_name_str
     except Exception as e:
         print(
             f"{Colors.YELLOW}Warning: Failed to read channel name from {path}: {e}. Using default.{Colors.RESET}"
         )
-        return "crank"
+        return DEFAULT_CHANNEL_NAME
 
 
 from google import genai
@@ -170,7 +177,7 @@ class Core:
 
         self.preset_path: str = path
         self.preset: YmlHandler = YmlHandler(Path(self.preset_path))
-        self.channel_name = self.preset.get("NAME", "crank")
+        self.channel_name = self.preset.get("NAME", DEFAULT_CHANNEL_NAME)
         api_key = self.preset.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
         if not api_key:
             raise RuntimeError(
@@ -182,8 +189,8 @@ class Core:
         self.uploader: Optional[Uploader] = None
         if self.preset.get("UPLOAD") is not False:
             self.uploader = Uploader(
-                name=self.preset.get("NAME", "crank"),
-                auth_token=self.preset.get("OAUTH_PATH", "secrets.json"),
+                name=self.preset.get("NAME", DEFAULT_CHANNEL_NAME),
+                auth_token=self.preset.get("OAUTH_PATH", str(DEFAULT_SECRETS_FILE)),
             )
 
         self.orchestrator: Orchestrator = Orchestrator(
@@ -193,8 +200,8 @@ class Core:
             editor=Editor(workspace=self.workspace),
             caption=Handler(
                 workspace=self.workspace,
-                model_size=self.preset.get("WHISPER_MODEL", "small"),
-                font=self.preset.get("FONT", "Comic Sans MS"),
+                model_size=self.preset.get("WHISPER_MODEL", DEFAULT_WHISPER_MODEL),
+                font=self.preset.get("FONT", DEFAULT_FONT),
             ),
             uploader=self.uploader,
         )
@@ -297,13 +304,13 @@ if __name__ == "__main__":
         version=f"%(prog)s {get_version()}",
     )
     args = parser.parse_args()
-    path: str = args.path or os.environ.get("PRESET_PATH", "preset.yml")
+    path: str = args.path or os.environ.get("PRESET_PATH", str(DEFAULT_PRESET_FILE))
 
     preset_path = Path(path)
     if not preset_path.exists():
         print(
             f"{Colors.RED}Error: Preset file not found: {path}{Colors.RESET}\n"
-            f"{Colors.YELLOW}Please create a preset.yml file or specify a valid path with --path{Colors.RESET}\n"
+            f"{Colors.YELLOW}Please create a {DEFAULT_PRESET_FILE} file or specify a valid path with --path{Colors.RESET}\n"
         )
         sys.exit(1)
 

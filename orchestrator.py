@@ -16,6 +16,10 @@ from utils.colors import Colors
 
 T = TypeVar("T")
 
+# Error messages
+QUOTA_EXCEEDED_MESSAGE = "Daily API quota exceeded."
+UPLOAD_LIMIT_MESSAGE = "Upload limit reached."
+
 
 class Orchestrator:
     """Coordinates video generation pipeline."""
@@ -37,6 +41,21 @@ class Orchestrator:
         self.caption: Handler = caption
         self.uploader: Optional[Uploader] = uploader
         self.prompt: Prompt = Prompt()
+
+    def _get_current_iso_time(self) -> str:
+        """
+        Get current UTC time as ISO format string.
+
+        Returns:
+            str: Current UTC time in ISO format.
+        """
+        return datetime.datetime.now(datetime.UTC).isoformat()
+
+    def _handle_quota_exceeded(self) -> None:
+        """
+        Handle quota exceeded by setting LIMIT_TIME in preset.
+        """
+        self.preset.set("LIMIT_TIME", self._get_current_iso_time())
 
     def _upload(
         self, data: Dict[str, str], video_path: Union[str, Path]
@@ -73,9 +92,7 @@ class Orchestrator:
                     self.preset.set("USED_CONTENT", current[-100:])
             return video_url
         except ResumableUploadError:
-            self.preset.set(
-                "LIMIT_TIME", str(datetime.datetime.now(datetime.UTC).isoformat())
-            )
+            self._handle_quota_exceeded()
             raise
 
     def _process_task(self, data: Dict[str, str]) -> Path:
@@ -187,8 +204,8 @@ class Orchestrator:
             print(
                 f"\r{Colors.YELLOW}{message}{Colors.RESET} {Colors.RED}✗{Colors.RESET}"
             )
-            await self._print_error_message("Upload limit reached.")
-            raise QuotaExceededError("Upload limit reached")
+            await self._print_error_message(UPLOAD_LIMIT_MESSAGE)
+            raise QuotaExceededError(UPLOAD_LIMIT_MESSAGE)
         except QuotaExceededError:
             await self._stop_loading_task(stop_event, loading_task)
             print(
@@ -244,10 +261,8 @@ class Orchestrator:
                 "Generating content script", get_gemini_response
             )
         except QuotaExceededError:
-            self.preset.set(
-                "LIMIT_TIME", str(datetime.datetime.now(datetime.UTC).isoformat())
-            )
-            await self._print_error_message("Daily API quota exceeded.")
+            self._handle_quota_exceeded()
+            await self._print_error_message(QUOTA_EXCEEDED_MESSAGE)
             raise
 
         field_map: Dict[str, str] = {
@@ -314,10 +329,8 @@ class Orchestrator:
             )
             await self._print_success_output("Voiceover path", str(audio_path))
         except QuotaExceededError:
-            self.preset.set(
-                "LIMIT_TIME", str(datetime.datetime.now(datetime.UTC).isoformat())
-            )
-            await self._print_error_message("Daily API quota exceeded.")
+            self._handle_quota_exceeded()
+            await self._print_error_message(QUOTA_EXCEEDED_MESSAGE)
             raise
 
         ass_path = await self._execute_with_loading(
@@ -356,9 +369,7 @@ class Orchestrator:
                 else:
                     raise RuntimeError("Upload returned no URL")
             except ResumableUploadError:
-                self.preset.set(
-                    "LIMIT_TIME", str(datetime.datetime.now(datetime.UTC).isoformat())
-                )
+                self._handle_quota_exceeded()
                 raise
 
         return video_path

@@ -1,6 +1,6 @@
-from pathlib import Path
 from preset import YmlHandler
 from typing import Dict, List
+from utils.constants import DEFAULT_PROMPT_FILE
 
 
 class Prompt:
@@ -10,7 +10,7 @@ class Prompt:
 
     def __init__(self) -> None:
         """Initialize prompt handler and load templates from prompt.yml."""
-        self.prompts: YmlHandler = YmlHandler(Path("prompt.yml"))
+        self.prompts: YmlHandler = YmlHandler(DEFAULT_PROMPT_FILE)
 
         self.output_format: Dict[str, str] = {
             "TRANSCRIPT": self.prompts.get("GET_CONTENT", ""),

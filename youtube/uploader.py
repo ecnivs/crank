@@ -8,13 +8,16 @@ from pathlib import Path
 import datetime
 import logging
 from typing import Optional, Union, Dict, Any
+from utils.constants import DEFAULT_CHANNEL_NAME, DEFAULT_SECRETS_FILE
 
 
 class Uploader:
     """Handles uploading videos to YouTube using OAuth2 authentication."""
 
     def __init__(
-        self, name: str = "crank", auth_token: Union[str, Path] = "secrets.json"
+        self,
+        name: str = DEFAULT_CHANNEL_NAME,
+        auth_token: Union[str, Path] = DEFAULT_SECRETS_FILE,
     ) -> None:
         """
         Initialize uploader and authenticate with YouTube API.
