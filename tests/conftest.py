@@ -1,6 +1,7 @@
 """
 Pytest configuration and shared fixtures.
 """
+
 import json
 import os
 import tempfile
@@ -67,41 +68,43 @@ def preset_handler(temp_preset_file):
 def mock_gemini_client():
     """Create a mock Gemini client."""
     client = MagicMock()
-    
+
     mock_response = MagicMock()
     mock_response.text = "TRANSCRIPT: Say excitedly: Test transcript\nTITLE: Test Title\nDESCRIPTION: Test Description\nSEARCH_TERM: test search\nCATEGORY_ID: 24"
     mock_candidate = MagicMock()
     mock_candidate.content.text = mock_response.text
     mock_response.candidates = [mock_candidate]
-    
+
     client.models.generate_content.return_value = mock_response
-    
+
     mock_audio_response = MagicMock()
     mock_audio_part = MagicMock()
     mock_audio_part.inline_data.data = b"fake_audio_data" * 100
     mock_audio_candidate = MagicMock()
     mock_audio_candidate.content.parts = [mock_audio_part]
     mock_audio_response.candidates = [mock_audio_candidate]
-    
+
     def generate_content_side_effect(model, contents, config=None):
         if config and "AUDIO" in str(config.response_modalities):
             return mock_audio_response
         return mock_response
-    
+
     client.models.generate_content.side_effect = generate_content_side_effect
-    
+
     return client
 
 
 @pytest.fixture
 def mock_ffmpeg_probe(monkeypatch):
     """Mock ffprobe subprocess calls."""
+
     def mock_check_output(cmd, **kwargs):
         if "ffprobe" in cmd:
             return json.dumps({"format": {"duration": "30.5"}}).encode()
         return b""
-    
+
     import subprocess
+
     monkeypatch.setattr(subprocess, "check_output", mock_check_output)
     monkeypatch.setattr(subprocess, "run", Mock(return_value=Mock(returncode=0)))
 
@@ -109,13 +112,15 @@ def mock_ffmpeg_probe(monkeypatch):
 @pytest.fixture
 def mock_ffmpeg_success(monkeypatch):
     """Mock successful FFmpeg subprocess calls."""
+
     def mock_run(cmd, **kwargs):
         mock_result = Mock()
         mock_result.returncode = 0
         mock_result.check_returncode = Mock()
         return mock_result
-    
+
     import subprocess
+
     monkeypatch.setattr(subprocess, "run", mock_run)
 
 
@@ -123,14 +128,17 @@ def mock_ffmpeg_success(monkeypatch):
 def mock_file_exists(monkeypatch):
     """Mock Path.exists() to return True for test files."""
     original_exists = Path.exists
-    
+
     def exists(self):
         if isinstance(self, Path):
             # Allow specific test files
-            if any(x in str(self) for x in [".ass", ".wav", ".mp4", "preset.yml", "prompt.yml"]):
+            if any(
+                x in str(self)
+                for x in [".ass", ".wav", ".mp4", "preset.yml", "prompt.yml"]
+            ):
                 return True
         return original_exists(self)
-    
+
     monkeypatch.setattr(Path, "exists", exists)
 
 
@@ -205,7 +213,7 @@ def reset_environment(monkeypatch):
 def mock_whisper_model():
     """Mock Whisper model for transcription."""
     mock_model = MagicMock()
-    
+
     class MockSegment:
         def __init__(self):
             self.start = 0.0
@@ -215,11 +223,11 @@ def mock_whisper_model():
                 Mock(word="Test", start=0.0, end=1.0),
                 Mock(word="transcript", start=1.0, end=2.0),
             ]
-    
+
     class MockInfo:
         language = "en"
         duration = 5.0
-    
+
     mock_segments = [MockSegment()]
     mock_info = MockInfo()
     mock_model.transcribe.return_value = (mock_segments, mock_info)
@@ -230,24 +238,23 @@ def mock_whisper_model():
 def mock_spacy_model():
     """Mock SpaCy model for NLP processing."""
     mock_model = MagicMock()
-    
+
     class MockToken:
         def __init__(self, text, pos_):
             self.text = text
             self.pos_ = pos_
-    
+
     class MockDoc:
         def __init__(self, text):
             self.text = text
-    
+
     def load_side_effect(name, **kwargs):
         mock_nlp = MagicMock()
         mock_nlp.return_value = MockDoc("test text")
         return mock_nlp
-    
+
     import spacy
     from unittest.mock import patch
-    
+
     with patch("spacy.load", side_effect=load_side_effect):
         yield mock_model
-

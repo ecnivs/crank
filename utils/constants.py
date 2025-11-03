@@ -1,6 +1,7 @@
 """
 Application-wide constants.
 """
+
 from pathlib import Path
 
 # Video dimensions for YouTube Shorts
@@ -63,4 +64,3 @@ FFMPEG_AUDIO_BITRATE = "128k"
 FFMPEG_AUDIO_CODEC = "aac"
 FFMPEG_VIDEO_CODEC = "libx264"
 FFMPEG_PIX_FMT = "yuv420p"
-

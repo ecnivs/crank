@@ -1,12 +1,8 @@
 """
 Tests for prompt.Prompt class.
 """
-import tempfile
-from pathlib import Path
 
 import pytest
-import yaml
-
 from prompt import Prompt
 
 
@@ -15,9 +11,11 @@ def prompt_handler(temp_prompt_file, monkeypatch):
     """Create a Prompt instance with test prompt file."""
     # Monkeypatch the default prompt.yml path
     original_init = Prompt.__init__
-    
+
     def patched_init(self):
-        self.prompts = __import__("preset", fromlist=["YmlHandler"]).YmlHandler(temp_prompt_file)
+        self.prompts = __import__("preset", fromlist=["YmlHandler"]).YmlHandler(
+            temp_prompt_file
+        )
         self.output_format = {
             "TRANSCRIPT": self.prompts.get("GET_CONTENT", ""),
             "DESCRIPTION": self.prompts.get("GET_DESCRIPTION", ""),
@@ -25,7 +23,7 @@ def prompt_handler(temp_prompt_file, monkeypatch):
             "TITLE": self.prompts.get("GET_TITLE", ""),
             "CATEGORY_ID": self.prompts.get("GET_CATEGORY_ID", ""),
         }
-    
+
     monkeypatch.setattr(Prompt, "__init__", patched_init)
     return Prompt()
 
@@ -70,4 +68,3 @@ class TestPrompt:
         used = ["topic1", "topic2", "topic3", "topic4"]
         result = prompt_handler.build("new topic", used)
         assert all(topic in result for topic in used)
-

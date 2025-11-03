@@ -1,12 +1,8 @@
 """
 Tests for preset.YmlHandler class.
 """
-import tempfile
-from pathlib import Path
 
-import pytest
 import yaml
-
 from preset import YmlHandler
 
 
@@ -47,7 +43,7 @@ class TestYmlHandler:
         """Test setting a value."""
         preset_handler.set("NEW_KEY", "new_value")
         assert preset_handler.get("NEW_KEY") == "new_value"
-        
+
         # Verify it's persisted to file
         handler2 = YmlHandler(temp_preset_file)
         assert handler2.get("NEW_KEY") == "new_value"
@@ -56,10 +52,10 @@ class TestYmlHandler:
         """Test deleting a key."""
         preset_handler.set("TO_DELETE", "value")
         assert preset_handler.get("TO_DELETE") == "value"
-        
+
         preset_handler.delete("TO_DELETE")
         assert preset_handler.get("TO_DELETE") is None
-        
+
         # Verify it's persisted
         handler2 = YmlHandler(temp_preset_file)
         assert handler2.get("TO_DELETE") is None
@@ -69,7 +65,7 @@ class TestYmlHandler:
         preset_handler.update({"KEY1": "value1", "KEY2": "value2"})
         assert preset_handler.get("KEY1") == "value1"
         assert preset_handler.get("KEY2") == "value2"
-        
+
         # Verify persistence
         handler2 = YmlHandler(temp_preset_file)
         assert handler2.get("KEY1") == "value1"
@@ -91,4 +87,3 @@ class TestYmlHandler:
         preset_handler.set("COMPLEX", complex_data)
         result = preset_handler.get("COMPLEX")
         assert result == complex_data
-

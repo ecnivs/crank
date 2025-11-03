@@ -119,6 +119,9 @@ Your support helps keep the project active and enables new features.
   <a href="https://www.buymeacoffee.com/ecnivs" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 </div>
 
+## 🧪 Testing
+For information about running tests, see [TESTING.md](TESTING.md).
+
 ## 🙌 Contributing
 Feel free to:
 1. Fork the repository
