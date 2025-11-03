@@ -129,7 +129,7 @@ def new_workspace() -> Generator[str, None, None]:
 def get_version() -> str:
     """
     Get version from pyproject.toml.
-    
+
     Returns:
         str: Version string from pyproject.toml.
     """
