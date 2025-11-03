@@ -1,6 +1,6 @@
 import datetime
 from contextlib import contextmanager
-from typing import Generator
+from typing import Generator, Optional
 import asyncio
 import logging
 import os
@@ -11,7 +11,6 @@ import tempfile
 import tomllib
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Optional
 from dotenv import load_dotenv
 
 
