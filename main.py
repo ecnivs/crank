@@ -45,7 +45,7 @@ def setup_logging(log_file: Path = Path("crank.log")) -> None:
     class ConsoleFilter(logging.Filter):
         def filter(self, record):
             important_modules = ["Core", "Orchestrator"]
-            if any(module in record.name for module in important_modules):
+            if record.name in important_modules:
                 if record.levelno >= logging.INFO:
                     return True
             return False
