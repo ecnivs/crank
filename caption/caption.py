@@ -2,7 +2,7 @@ import logging
 import spacy
 from .stt import SpeechToText
 from pathlib import Path
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Any
 
 
 class Handler:
@@ -87,7 +87,16 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         Returns:
             Path: Path to the generated ASS file.
+
+        Raises:
+            FileNotFoundError: If audio file does not exist.
         """
+        audio_path = Path(audio_path)
+        if not audio_path.exists():
+            raise FileNotFoundError(
+                f"Audio file not found: {audio_path}\n"
+                f"Please ensure the audio file exists and the path is correct."
+            )
         result: Dict[str, Any] = self.stt.transcribe(audio_path)
         path: Path = self.workspace / "captions.ass"
 

@@ -171,16 +171,18 @@ class Core:
         self.preset_path: str = path
         self.preset: YmlHandler = YmlHandler(Path(self.preset_path))
         self.channel_name = self.preset.get("NAME", "crank")
-        self.client: genai.Client = genai.Client(
-            api_key=(
-                self.preset.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
+        api_key = self.preset.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "GEMINI_API_KEY not found. Please set it in preset.yml or .env file. "
+                "Get your API key from: https://makersuite.google.com/app/apikey"
             )
-        )
+        self.client: genai.Client = genai.Client(api_key=api_key)
 
         self.uploader: Optional[Uploader] = None
         if self.preset.get("UPLOAD") is not False:
             self.uploader = Uploader(
-                name=self.preset.get("NAME", default="crank"),
+                name=self.preset.get("NAME", "crank"),
                 auth_token=self.preset.get("OAUTH_PATH", "secrets.json"),
             )
 
@@ -191,8 +193,8 @@ class Core:
             editor=Editor(workspace=self.workspace),
             caption=Handler(
                 workspace=self.workspace,
-                model_size=self.preset.get("WHISPER_MODEL", default="small"),
-                font=self.preset.get("FONT", default="Comic Sans MS"),
+                model_size=self.preset.get("WHISPER_MODEL", "small"),
+                font=self.preset.get("FONT", "Comic Sans MS"),
             ),
             uploader=self.uploader,
         )
@@ -284,10 +286,26 @@ if __name__ == "__main__":
 
     parser = ArgumentParser(description="Crank - Automated YouTube Shorts Generator")
     parser.add_argument(
-        "--path", help="Path to config.yml", default="preset.yml", type=str
+        "--path",
+        help="Path to config.yml (overrides PRESET_PATH env var)",
+        default=None,
+        type=str,
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {get_version()}",
     )
     args = parser.parse_args()
-    path: str = args.path
+    path: str = args.path or os.environ.get("PRESET_PATH", "preset.yml")
+
+    preset_path = Path(path)
+    if not preset_path.exists():
+        print(
+            f"{Colors.RED}Error: Preset file not found: {path}{Colors.RESET}\n"
+            f"{Colors.YELLOW}Please create a preset.yml file or specify a valid path with --path{Colors.RESET}\n"
+        )
+        sys.exit(1)
 
     channel_name = get_channel_name_from_preset(path)
 

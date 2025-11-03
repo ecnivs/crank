@@ -29,6 +29,12 @@ class Uploader:
         self.scopes: list[str] = ["https://www.googleapis.com/auth/youtube.upload"]
 
         self.secrets_file: Path = Path(auth_token)
+        if not self.secrets_file.exists():
+            raise FileNotFoundError(
+                f"OAuth secrets file not found: {auth_token}\n"
+                f"Please create a secrets.json file with your OAuth2 client credentials.\n"
+                f"See: https://developers.google.com/youtube/v3/guides/auth/server-side-web-apps"
+            )
         self.token_folder: Path = Path(".tokens")
         self.token_folder.mkdir(exist_ok=True)
         self.token_file: Path = self.token_folder / f"{self.name}_token.json"
@@ -71,7 +77,7 @@ class Uploader:
                 flow = InstalledAppFlow.from_client_secrets_file(
                     str(self.secrets_file), self.scopes
                 )
-                self.credentials = flow.run_local_server(port=0, open_browser=True)
+                self.credentials = flow.run_local_server(port=0, open_browser=False)
 
             self.token_file.write_text(self.credentials.to_json(), encoding="utf-8")
 

@@ -152,7 +152,11 @@ class Gemini:
                     "Daily API quota exceeded. Please wait 24 hours before trying again or check your billing plan."
                 )
             else:
-                raise RuntimeError(f"Failed to generate audio: {e}") from e
+                raise RuntimeError(
+                    f"Failed to generate audio from transcript. "
+                    f"Error: {e}\n"
+                    f"Please check your API key and ensure the transcript is valid."
+                ) from e
 
     def get_response(
         self, query: str, model: Union[str, float], max_retries: int = 3

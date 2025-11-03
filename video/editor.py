@@ -90,7 +90,8 @@ class Editor:
         ]:
             if not file_path.exists():
                 raise FileNotFoundError(
-                    f"[{self.__class__.__name__}] {desc} not found: {file_path}"
+                    f"[{self.__class__.__name__}] {desc} file not found: {file_path}\n"
+                    f"Please ensure all required files (subtitle, audio, media) are generated/available."
                 )
 
         audio_duration = self._get_duration(audio_path)
@@ -99,7 +100,9 @@ class Editor:
 
         if final_duration <= 0:
             raise ValueError(
-                f"[{self.__class__.__name__}] Calculated video duration is not positive"
+                f"[{self.__class__.__name__}] Calculated video duration is not positive "
+                f"(audio: {audio_duration:.2f}s, media: {media_duration:.2f}s). "
+                f"Please check that both audio and video files are valid."
             )
 
         cmd = [
@@ -146,9 +149,12 @@ class Editor:
             return output_path
 
         except subprocess.CalledProcessError as e:
-            self.logger.error(f"FFmpeg failed: {e.stderr or str(e)}")
+            error_msg = e.stderr or str(e)
+            self.logger.error(f"FFmpeg failed: {error_msg}")
             raise RuntimeError(
-                f"[{self.__class__.__name__}] Error while processing video: {e}"
+                f"[{self.__class__.__name__}] Error while processing video: {error_msg}\n"
+                f"This may indicate an issue with FFmpeg installation or the input files. "
+                f"Please ensure FFmpeg is installed and the input files are valid."
             ) from e
         except Exception as e:
             self.logger.error(f"Unexpected error: {e}")

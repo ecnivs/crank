@@ -85,6 +85,11 @@ brew install ffmpeg
 # Windows (using Chocolatey)
 choco install ffmpeg
 ```
+4. Install spaCy language model
+```bash
+uv run python -m spacy download en_core_web_md
+```
+
 
 ## 🚀 Running Crank
 Run the tool with the default configuration:
@@ -104,7 +109,7 @@ https://github.com/user-attachments/assets/69b1dc3d-79f2-4a6f-bde1-da6c07e32185
 </div>
 
 ## 💖 Support the project
-If you find Crank helpful and want to support its development, donations are welcome!  
+If you find Crank helpful and want to support its development, donations are welcome!
 Your support helps keep the project active and enables new features.
 <div align="center">
   <a href="https://www.buymeacoffee.com/ecnivs" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
