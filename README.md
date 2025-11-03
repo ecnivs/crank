@@ -26,6 +26,7 @@
 
 ## 🛠️ Prerequisites
 - Python 3.x (Tested with Python 3.13)
+- `uv` (Python package manager)
 - `ffmpeg` and `ffprobe` installed and available in your system PATH (required for video processing)
 
 #### Environment Variables
@@ -34,7 +35,6 @@ Make sure to create a `.env` file in the root directory containing your API keys
 ```ini
 GEMINI_API_KEY=your_api_key_here
 ```
-
 
 #### Credential Files
 The other credentials are stored as JSON files inside the root directory:
@@ -67,11 +67,15 @@ Change the following directly in the file:
 git clone https://github.com/ecnivs/crank.git
 cd crank
 ```
-2. **Install dependencies**
+2. **Install `uv`**
+```bash
+pip install uv
+```
+3. **Install dependencies using `uv`**
 ```bash
 uv sync
 ```
-3. **Install `ffmpeg`**
+4. **Install `ffmpeg`**
 ```bash
 # Debian / Ubuntu
 sudo apt install ffmpeg
@@ -85,18 +89,18 @@ brew install ffmpeg
 # Windows (using Chocolatey)
 choco install ffmpeg
 ```
-4. Install spaCy language model
+5. **Install `spaCy` language model**
 ```bash
 uv run python -m spacy download en_core_web_md
 ```
 
 
 ## 🚀 Running Crank
-Run the tool with the default configuration:
+**Run the tool with the default configuration**
 ```bash
 uv run main.py
 ```
-Or provide your custom config file with `--path`:
+**Or provide your custom config file with `--path`**
 ```bash
 uv run main.py --path path/to/your_config.yml
 ```
