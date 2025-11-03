@@ -1,12 +1,20 @@
 import logging
 import random
+import re
 import time
 from google.genai import types
 from google import genai
+from google.genai.errors import ClientError
 import wave
 import os
 from pathlib import Path
 from typing import Union, Dict, Optional, List
+
+
+class QuotaExceededError(RuntimeError):
+    """Exception raised when API quota is exceeded after all retries."""
+
+    pass
 
 
 class Gemini:
@@ -28,6 +36,50 @@ class Gemini:
             "2.0": "gemini-2.0-flash",
         }
         self.voice: str = "Alnilam"
+
+    def _extract_retry_delay(self, error: Exception) -> float:
+        """
+        Extract retry delay from 429 quota error response.
+
+        Args:
+            error: Exception that may contain retry delay information.
+
+        Returns:
+            float: Retry delay in seconds, or 60.0 as default.
+        """
+        default_delay = 60.0
+
+        if isinstance(error, ClientError):
+            try:
+                error_str = str(error)
+                retry_delay_match = re.search(r"Please retry in ([\d.]+)s", error_str)
+                if retry_delay_match:
+                    delay = float(retry_delay_match.group(1))
+                    return max(delay, 5.0)
+
+                retry_delay_alt = re.search(r"retryDelay[=:] ['\"]?(\d+)s", error_str)
+                if retry_delay_alt:
+                    delay = float(retry_delay_alt.group(1))
+                    return max(delay, 5.0)
+            except (ValueError, AttributeError, IndexError):
+                pass
+
+        return default_delay
+
+    def _is_quota_exceeded(self, error: Exception) -> bool:
+        """
+        Check if error is due to quota exhaustion.
+
+        Args:
+            error: Exception to check.
+
+        Returns:
+            bool: True if error is a 429 quota error.
+        """
+        if isinstance(error, ClientError):
+            error_str = str(error)
+            return "429" in error_str and "RESOURCE_EXHAUSTED" in error_str
+        return False
 
     def _save_to_wav(self, pcm: bytes) -> str:
         """
@@ -57,11 +109,15 @@ class Gemini:
 
         Returns:
             str: Path to generated audio file.
-        """
-        try:
-            if not transcript:
-                raise ValueError("Transcript must be a non-empty string")
 
+        Raises:
+            QuotaExceededError: If daily quota is exceeded.
+            RuntimeError: If audio generation fails.
+        """
+        if not transcript:
+            raise ValueError("Transcript must be a non-empty string")
+
+        try:
             response = self.client.models.generate_content(
                 model="gemini-2.5-flash-preview-tts",
                 contents=transcript,
@@ -91,7 +147,12 @@ class Gemini:
             return path
 
         except Exception as e:
-            raise RuntimeError(f"Failed to generate audio: {e}") from e
+            if self._is_quota_exceeded(e):
+                raise QuotaExceededError(
+                    "Daily API quota exceeded. Please wait 24 hours before trying again or check your billing plan."
+                )
+            else:
+                raise RuntimeError(f"Failed to generate audio: {e}") from e
 
     def get_response(
         self, query: str, model: Union[str, float], max_retries: int = 3
@@ -135,11 +196,16 @@ class Gemini:
                     return text
 
                 except Exception as e:
-                    wait = 2**attempt + random.uniform(0, 1)
-                    self.logger.warning(
-                        f"Attempt {attempt}/{max_retries} with {fallback_model} failed: {e}. Retrying in {wait:.1f}s"
-                    )
-                    time.sleep(wait)
+                    if self._is_quota_exceeded(e):
+                        raise QuotaExceededError(
+                            "Daily API quota exceeded. Please wait 24 hours before trying again or check your billing plan."
+                        )
+                    else:
+                        wait = 2**attempt + random.uniform(0, 1)
+                        self.logger.warning(
+                            f"Attempt {attempt}/{max_retries} with {fallback_model} failed: {e}. Retrying in {wait:.1f}s"
+                        )
+                        time.sleep(wait)
 
             self.logger.warning(
                 f"Model {fallback_model} exhausted retries, trying fallback if available"

@@ -4,9 +4,11 @@ from typing import Generator
 import asyncio
 import logging
 import os
+import re
 import shutil
 import sys
 import tempfile
+import tomllib
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Optional
@@ -43,7 +45,7 @@ def setup_logging(log_file: Path = Path("crank.log")) -> None:
     console_handler.setFormatter(console_formatter)
 
     class ConsoleFilter(logging.Filter):
-        def filter(self, record):
+        def filter(self, record: logging.LogRecord) -> bool:
             important_modules = ["Core", "Orchestrator"]
             if record.name in important_modules:
                 if record.levelno >= logging.INFO:
@@ -69,13 +71,40 @@ def get_channel_name_from_preset(path: str) -> str:
     Returns:
         str: Channel name or default "crank".
     """
-    preset = YmlHandler(Path(path))
-    return preset.get("NAME", "crank")
+    try:
+        preset_path = Path(path)
+        if not preset_path.exists():
+            print(
+                f"{Colors.YELLOW}Warning: Preset file {path} does not exist, using default channel name{Colors.RESET}"
+            )
+            return "crank"
+        preset = YmlHandler(preset_path)
+        channel_name = preset.get("NAME")
+
+        if channel_name is None:
+            print(
+                f"\n{Colors.YELLOW}Warning: No 'NAME' field found in preset file '{path}'. Using default channel name 'crank'.{Colors.RESET}\n"
+            )
+            return "crank"
+
+        channel_name_str = str(channel_name).strip()
+        if not channel_name_str:
+            print(
+                f"\n{Colors.YELLOW}Warning: 'NAME' field in preset file '{path}' is empty. Using default channel name 'crank'.{Colors.RESET}\n"
+            )
+            return "crank"
+
+        return channel_name_str
+    except Exception as e:
+        print(
+            f"{Colors.YELLOW}Warning: Failed to read channel name from {path}: {e}. Using default.{Colors.RESET}"
+        )
+        return "crank"
 
 
 from google import genai
 from caption import Handler
-from response import Gemini
+from response import Gemini, QuotaExceededError
 from youtube import Uploader
 from media import Scraper
 from video import Editor
@@ -97,8 +126,25 @@ def new_workspace() -> Generator[str, None, None]:
         shutil.rmtree(temp_dir)
 
 
+def get_version() -> str:
+    """
+    Get version from pyproject.toml.
+    
+    Returns:
+        str: Version string from pyproject.toml.
+    """
+    pyproject_path = Path(__file__).parent / "pyproject.toml"
+    try:
+        with open(pyproject_path, "rb") as f:
+            pyproject = tomllib.load(f)
+            return pyproject["project"]["version"]
+    except (FileNotFoundError, KeyError, Exception):
+        return "0.2.0"
+
+
 def print_banner() -> None:
     """Print application banner."""
+    version = get_version()
     banner = f"""{Colors.CYAN}
  ██████╗██████╗  █████╗ ███╗   ██╗██╗  ██╗
 ██╔════╝██╔══██╗██╔══██╗████╗  ██║██║ ██╔╝
@@ -107,7 +153,7 @@ def print_banner() -> None:
 ╚██████╗██║  ██║██║  ██║██║ ╚████║██║  ██╗
  ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝{Colors.RESET}
     by ecnivs ~ automate your shorts :3
-                v0.1.0
+                v{version}
     """
     print(banner)
 
@@ -177,26 +223,25 @@ class Core:
 
         while self.is_running:
             try:
-                if self.uploader:
-                    time_left = self._time_left(num_hours=24)
-                    if time_left > 0:
-                        print(
-                            f"\n{Colors.YELLOW}Upload cooldown active...{Colors.RESET}"
+                time_left = self._time_left(num_hours=24)
+                if time_left > 0:
+                    print(
+                        f"\n{Colors.YELLOW}Rate limit cooldown active...{Colors.RESET}"
+                    )
+                    while time_left > 0:
+                        hours, minutes, seconds = (
+                            time_left // 3600,
+                            (time_left % 3600) // 60,
+                            time_left % 60,
                         )
-                        while time_left > 0:
-                            hours, minutes, seconds = (
-                                time_left // 3600,
-                                (time_left % 3600) // 60,
-                                time_left % 60,
-                            )
-                            print(
-                                f"\r{Colors.DIM}Waiting: {hours:02d}h {minutes:02d}m {seconds:02d}s remaining{Colors.RESET}",
-                                end="",
-                                flush=True,
-                            )
-                            await asyncio.sleep(1)
-                            time_left -= 1
-                        print("\n")
+                        print(
+                            f"\r{Colors.DIM}Waiting: {hours:02d}h {minutes:02d}m {seconds:02d}s remaining{Colors.RESET}",
+                            end="",
+                            flush=True,
+                        )
+                        await asyncio.sleep(1)
+                        time_left -= 1
+                    print("\n")
 
                 prompt: Optional[str] = self.preset.get("PROMPT")
                 if prompt:
@@ -217,11 +262,11 @@ class Core:
 
                 await self.orchestrator.process(prompt)
 
+            except QuotaExceededError:
+                continue
             except RuntimeError as e:
                 self.logger.critical(f"Runtime error: {e}", exc_info=True)
-                print(
-                    f"\n{Colors.RED}ERR {e}{Colors.RESET}\n"
-                )
+                print(f"\n{Colors.RED}ERR {e}{Colors.RESET}\n")
                 self.is_running = False
                 return
             except KeyboardInterrupt:
@@ -230,9 +275,7 @@ class Core:
                 raise
             except Exception as e:
                 self.logger.error(f"Error during processing: {e}", exc_info=True)
-                print(
-                    f"\n{Colors.RED}ERR {e}{Colors.RESET}\n"
-                )
+                print(f"\n{Colors.RED}ERR {e}{Colors.RESET}\n")
                 await asyncio.sleep(1)
 
 
@@ -247,7 +290,18 @@ if __name__ == "__main__":
     path: str = args.path
 
     channel_name = get_channel_name_from_preset(path)
+
+    sanitized_name = re.sub(r"[^\w\-_\.]", "_", channel_name)
+    if sanitized_name != channel_name:
+        print(
+            f"{Colors.YELLOW}Warning: Channel name '{channel_name}' contains invalid filename characters. Using '{sanitized_name}' for log file.{Colors.RESET}"
+        )
+        channel_name = sanitized_name
+
     log_file = Path(f"{channel_name}.log")
+
+    print(f"{Colors.DIM}Logging to: {log_file.absolute()}{Colors.RESET}\n")
+
     setup_logging(log_file)
 
     try:
@@ -262,9 +316,9 @@ if __name__ == "__main__":
         sys.exit(0)
     except SystemExit:
         raise
+    except QuotaExceededError:
+        sys.exit(0)
     except Exception as e:
         logging.critical(f"Fatal Error: {e}", exc_info=True)
-        print(
-            f"\n{Colors.RED}ERR {e}{Colors.RESET}\n"
-        )
+        print(f"\n{Colors.RED}ERR {e}{Colors.RESET}\n")
         sys.exit(1)

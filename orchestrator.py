@@ -6,7 +6,7 @@ import asyncio
 from prompt import Prompt
 from preset import YmlHandler
 from media import Scraper
-from response import Gemini
+from response import Gemini, QuotaExceededError
 from video import Editor
 from caption import Handler
 from youtube import Uploader
@@ -67,18 +67,16 @@ class Orchestrator:
             video_url, scheduled_time = self.uploader.upload(video_data=upload_dict)
             if video_url and scheduled_time:
                 self.preset.set("LAST_UPLOAD", scheduled_time)
+                current: List[str] = self.preset.get("USED_CONTENT") or []
+                if title and title not in current:
+                    current.append(title.strip())
+                    self.preset.set("USED_CONTENT", current[-100:])
             return video_url
         except ResumableUploadError:
             self.preset.set(
                 "LIMIT_TIME", str(datetime.datetime.now(datetime.UTC).isoformat())
             )
-            self.logger.warning("Upload limit reached")
-            return None
-
-        current: List[str] = self.preset.get("USED_CONTENT") or []
-        if title and title not in current:
-            current.append(title.strip())
-            self.preset.set("USED_CONTENT", current[-100:])
+            raise
 
     def _process_task(self, data: Dict[str, str]) -> Path:
         """
@@ -153,7 +151,7 @@ class Orchestrator:
             pass
 
     async def _execute_with_loading(
-        self, message: str, task: Callable[..., T], *args: object, **kwargs: object
+        self, message: str, task: Callable[..., T], *args: Any, **kwargs: Any
     ) -> T:
         """
         Execute task with animated loading indicator.
@@ -170,10 +168,12 @@ class Orchestrator:
         stop_event = asyncio.Event()
         loading_task = asyncio.create_task(self._animate_loading(message, stop_event))
 
-        try:
-            loop = asyncio.get_event_loop()
+        await asyncio.sleep(0.1)
 
-            def run_task():
+        try:
+            loop = asyncio.get_running_loop()
+
+            def run_task() -> T:
                 return task(*args, **kwargs)
 
             result = await loop.run_in_executor(None, run_task)
@@ -182,6 +182,19 @@ class Orchestrator:
                 f"\r{Colors.YELLOW}{message}{Colors.RESET} {Colors.GREEN}✓{Colors.RESET}   "
             )
             return result
+        except ResumableUploadError:
+            await self._stop_loading_task(stop_event, loading_task)
+            print(
+                f"\r{Colors.YELLOW}{message}{Colors.RESET} {Colors.RED}✗{Colors.RESET}"
+            )
+            await self._print_error_message("Upload limit reached.")
+            raise QuotaExceededError("Upload limit reached")
+        except QuotaExceededError:
+            await self._stop_loading_task(stop_event, loading_task)
+            print(
+                f"\r{Colors.YELLOW}{message}{Colors.RESET} {Colors.RED}✗{Colors.RESET}"
+            )
+            raise
         except Exception as e:
             await self._stop_loading_task(stop_event, loading_task)
             print(
@@ -189,6 +202,27 @@ class Orchestrator:
             )
             self.logger.error(f"Failed {message.lower()}: {e}", exc_info=True)
             raise
+
+    async def _print_success_output(self, label: str, value: str) -> None:
+        """
+        Print success output with consistent formatting.
+
+        Args:
+            label: Label text.
+            value: Value text to display in magenta.
+        """
+        print(
+            f"{Colors.GREEN}OK{Colors.RESET} {Colors.WHITE}{label}:{Colors.RESET} {Colors.MAGENTA}{value}{Colors.RESET}\n"
+        )
+
+    async def _print_error_message(self, message: str) -> None:
+        """
+        Print error message with consistent formatting.
+
+        Args:
+            message: Error message text.
+        """
+        print(f"{Colors.RED}ERR{Colors.RESET} {Colors.WHITE}{message}{Colors.RESET}\n")
 
     async def process(self, prompt: str) -> Path:
         """
@@ -202,26 +236,18 @@ class Orchestrator:
         """
         response: str = self.prompt.build(prompt, self.preset.get("USED_CONTENT", []))
 
-        stop_event = asyncio.Event()
-        loading_task = asyncio.create_task(
-            self._animate_loading("Generating content script", stop_event)
-        )
+        def get_gemini_response() -> str:
+            return self.gemini.get_response(response, 2.5)
 
         try:
-            loop = asyncio.get_event_loop()
-            text: str = await loop.run_in_executor(
-                None, self.gemini.get_response, response, 2.5
+            text: str = await self._execute_with_loading(
+                "Generating content script", get_gemini_response
             )
-            await self._stop_loading_task(stop_event, loading_task)
-            print(
-                f"\r{Colors.YELLOW}Generating content script{Colors.RESET} {Colors.GREEN}✓{Colors.RESET}   "
+        except QuotaExceededError:
+            self.preset.set(
+                "LIMIT_TIME", str(datetime.datetime.now(datetime.UTC).isoformat())
             )
-        except Exception as e:
-            await self._stop_loading_task(stop_event, loading_task)
-            print(
-                f"\r{Colors.YELLOW}Generating content script{Colors.RESET} {Colors.RED}✗{Colors.RESET}   "
-            )
-            self.logger.error(f"Failed to generate content script: {e}", exc_info=True)
+            await self._print_error_message("Daily API quota exceeded.")
             raise
 
         field_map: Dict[str, str] = {
@@ -270,42 +296,39 @@ class Orchestrator:
                 self.logger.error(
                     f"Failed to extract transcript. Raw response: {text[:500]}..."
                 )
-                print(
-                    f"\n{Colors.RED}ERR Failed to extract transcript{Colors.RESET}"
-                )
+                await self._print_error_message("Failed to extract transcript")
                 raise ValueError(
                     "Cannot proceed without transcript. Gemini response did not contain "
                     "TRANSCRIPT: field and fallback extraction failed."
                 )
 
         title = result.get("title", "N/A")
-        print(
-            f"{Colors.GREEN}OK{Colors.RESET} {Colors.WHITE}Generated Content:{Colors.RESET} {Colors.MAGENTA}{title}{Colors.RESET}\n"
-        )
+        await self._print_success_output("Generated Content", title)
 
         transcript = result.get("transcript", "")
         search_term = result.get("search_term", "")
 
-        audio_path = await self._execute_with_loading(
-            "Generating voiceover", self.gemini.get_audio, transcript
-        )
-        print(
-            f"{Colors.GREEN}OK{Colors.RESET} {Colors.WHITE}Voiceover path:{Colors.RESET} {Colors.MAGENTA}{audio_path}{Colors.RESET}\n"
-        )
+        try:
+            audio_path = await self._execute_with_loading(
+                "Generating voiceover", self.gemini.get_audio, transcript
+            )
+            await self._print_success_output("Voiceover path", str(audio_path))
+        except QuotaExceededError:
+            self.preset.set(
+                "LIMIT_TIME", str(datetime.datetime.now(datetime.UTC).isoformat())
+            )
+            await self._print_error_message("Daily API quota exceeded.")
+            raise
 
         ass_path = await self._execute_with_loading(
             "Generating captions", self.caption.get_captions, audio_path
         )
-        print(
-            f"{Colors.GREEN}OK{Colors.RESET} {Colors.WHITE}Captions path:{Colors.RESET} {Colors.MAGENTA}{ass_path}{Colors.RESET}\n"
-        )
+        await self._print_success_output("Captions path", str(ass_path))
 
         media_path = await self._execute_with_loading(
             "Preparing background video", self.scraper.get_media, search_term
         )
-        print(
-            f"{Colors.GREEN}OK{Colors.RESET} {Colors.WHITE}Background video path:{Colors.RESET} {Colors.MAGENTA}{media_path}{Colors.RESET}\n"
-        )
+        await self._print_success_output("Background video path", str(media_path))
 
         video_path = await self._execute_with_loading(
             "Assembling video elements",
@@ -315,41 +338,27 @@ class Orchestrator:
             media_path,
         )
 
-        print(
-            f"{Colors.GREEN}OK{Colors.RESET} {Colors.WHITE}Output Path:{Colors.RESET} {Colors.MAGENTA}{video_path}{Colors.RESET}\n"
-        )
+        await self._print_success_output("Output Path", str(video_path))
 
         if self.uploader:
-            stop_event = asyncio.Event()
-            loading_task = asyncio.create_task(
-                self._animate_loading("Uploading to YouTube", stop_event)
-            )
+
+            def upload_video() -> Optional[str]:
+                return self._upload(result, video_path)
 
             try:
-                loop = asyncio.get_event_loop()
-                video_url = await loop.run_in_executor(
-                    None, self._upload, result, video_path
+                video_url = await self._execute_with_loading(
+                    "Uploading to YouTube", upload_video
                 )
-                await self._stop_loading_task(stop_event, loading_task)
                 if video_url:
-                    print(
-                        f"\r{Colors.YELLOW}Uploading to YouTube{Colors.RESET} {Colors.GREEN}✓{Colors.RESET}   "
-                    )
-                    print(
-                        f"{Colors.GREEN}OK{Colors.RESET} {Colors.WHITE}Successfully uploaded short:{Colors.RESET} {Colors.MAGENTA}{video_url}{Colors.RESET}\n"
+                    await self._print_success_output(
+                        "Successfully uploaded short", video_url
                     )
                 else:
-                    print(
-                        f"\r{Colors.YELLOW}Uploading to YouTube{Colors.RESET} {Colors.RED}✗{Colors.RESET}   "
-                    )
-                    raise Exception("Upload returned no URL")
-            except Exception as e:
-                await self._stop_loading_task(stop_event, loading_task)
-                print(
-                    f"\r{Colors.YELLOW}Uploading to YouTube{Colors.RESET} {Colors.RED}✗{Colors.RESET}   "
+                    raise RuntimeError("Upload returned no URL")
+            except ResumableUploadError:
+                self.preset.set(
+                    "LIMIT_TIME", str(datetime.datetime.now(datetime.UTC).isoformat())
                 )
-                self.logger.error(f"Failed to upload to YouTube: {e}", exc_info=True)
                 raise
 
-        await asyncio.sleep(0.01)
         return video_path

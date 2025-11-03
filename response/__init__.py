@@ -1,3 +1,3 @@
-from .gemini import Gemini
+from .gemini import Gemini, QuotaExceededError
 
-__all__ = ["Gemini"]
+__all__ = ["Gemini", "QuotaExceededError"]
