@@ -717,18 +717,6 @@ class Scraper:
             f"Unable to download any video for query: {query}. All attempts failed."
         )
 
-    def _clip_video(self, input_path: Path) -> Path:
-        """
-        Process video to build final 1080x1920 short.
-
-        Args:
-            input_path: Path to input video.
-
-        Returns:
-            Path: Path to clipped video.
-        """
-        return media_processor.process_to_short(input_path, self.workspace)
-
     def get_media(self, term: str) -> Path:
         """
         Search, download, clip, and return path to short video.
@@ -740,7 +728,7 @@ class Scraper:
             Path: Path to final clipped video.
         """
         video_path: Path = self._download_video(term)
-        short_path: Path = self._clip_video(video_path)
+        short_path: Path = media_processor.process_to_short(video_path, self.workspace)
         video_path.unlink(missing_ok=True)
         self.logger.info(f"Video template stored at {short_path}")
         return short_path

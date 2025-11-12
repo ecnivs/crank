@@ -109,6 +109,7 @@ def band_edge_score(input_src: str, start: float, duration: float, band: str) ->
         )
     except Exception:
         return 0.0
+
     values: List[float] = []
     for line in (proc.stderr or "").splitlines():
         if "lavfi.signalstats.YAVG" in line:
