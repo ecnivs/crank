@@ -13,6 +13,7 @@ from youtube import Uploader
 import re
 from typing import List, Dict, Union, Optional, Callable, TypeVar, Any
 from utils.colors import Colors
+from utils.constants import DEFAULT_GEMINI_MODEL
 
 T = TypeVar("T")
 
@@ -254,7 +255,7 @@ class Orchestrator:
         response: str = self.prompt.build(prompt, self.preset.get("USED_CONTENT", []))
 
         def get_gemini_response() -> str:
-            return self.gemini.get_response(response, 2.5)
+            return self.gemini.get_response(response, DEFAULT_GEMINI_MODEL)
 
         try:
             text: str = await self._execute_with_loading(
