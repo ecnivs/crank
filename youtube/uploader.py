@@ -109,10 +109,11 @@ class Uploader:
             last_upload: Optional[datetime.datetime] = video_data.get("last_upload")
             delay: int = video_data.get("delay", 0)
 
+            scheduled_publish_time = now
             if last_upload and delay > 0:
-                scheduled_publish_time = last_upload + datetime.timedelta(hours=delay)
-            else:
-                scheduled_publish_time = now
+                candidate_time = last_upload + datetime.timedelta(hours=delay)
+                if candidate_time > now:
+                    scheduled_publish_time = candidate_time
 
             body: Dict[str, Any] = {
                 "snippet": {
