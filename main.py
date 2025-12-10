@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from typing import Generator, Optional
 import asyncio
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 import re
 import shutil
@@ -24,9 +25,9 @@ from utils.constants import (
 )
 
 
-def setup_logging(log_file: Path = Path("crank.log")) -> None:
+def setup_logging(log_file: Path = Path("logs/crank.log")) -> None:
     """
-    Configure logging to file and console.
+    Configure logging to file (with rotation) and console.
 
     Args:
         log_file: Path to log file.
@@ -37,7 +38,10 @@ def setup_logging(log_file: Path = Path("crank.log")) -> None:
 
     root_logger.setLevel(logging.DEBUG)
 
-    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    file_handler = RotatingFileHandler(
+        log_file, encoding="utf-8", maxBytes=10 * 1024 * 1024, backupCount=5
+    )
     file_handler.setLevel(logging.DEBUG)
     file_formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -322,7 +326,7 @@ if __name__ == "__main__":
         )
         channel_name = sanitized_name
 
-    log_file = Path(f"{channel_name}.log")
+    log_file = Path("logs") / f"{channel_name}.log"
 
     print(f"{Colors.DIM}Logging to: {log_file.absolute()}{Colors.RESET}\n")
 

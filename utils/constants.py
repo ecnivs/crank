@@ -34,7 +34,7 @@ DEFAULT_UPLOAD_DELAY = 2.5
 DEFAULT_SECRETS_FILE = Path("secrets.json")
 DEFAULT_PRESET_FILE = Path("preset.yml")
 DEFAULT_PROMPT_FILE = Path("prompt.yml")
-DEFAULT_LOG_FILE = Path("crank.log")
+DEFAULT_LOG_FILE = Path("logs/crank.log")
 TOKEN_FOLDER = Path(".tokens")
 
 # Gemini API

@@ -11,3 +11,4 @@ __pycache__/
 tokens/
 run.py
 *.log
+logs/
