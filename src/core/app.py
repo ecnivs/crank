@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Generator, Optional
 
 from dotenv import load_dotenv
-from google import genai
+import google.genai as genai
 
 from src.core.orchestrator import Orchestrator
 from src.plugins.base import BackgroundVideoPlugin

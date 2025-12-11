@@ -51,14 +51,14 @@ class TestCore:
     @patch("src.core.app.Editor")
     @patch("src.core.app.Handler")
     @patch("src.core.app.Gemini")
-    @patch("src.core.app.Scraper")
+    @patch("src.core.app.PluginRegistry")
     @patch("src.core.app.Orchestrator")
     @patch("src.core.app.genai.Client")
     def test_init_success(
         self,
         mock_client_class,
         mock_orchestrator_class,
-        mock_scraper_class,
+        mock_plugin_registry_class,
         mock_gemini_class,
         mock_handler_class,
         mock_editor_class,
@@ -69,6 +69,12 @@ class TestCore:
         """Test Core initialization with valid preset."""
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
+
+        mock_plugin_registry = MagicMock()
+        mock_plugin = MagicMock()
+        mock_plugin_registry.has_plugin.return_value = True
+        mock_plugin_registry.get_plugin.return_value = mock_plugin
+        mock_plugin_registry_class.return_value = mock_plugin_registry
 
         core = Core(workspace=str(temp_dir), path=str(temp_preset_file))
 
@@ -82,14 +88,14 @@ class TestCore:
     @patch("src.core.app.Editor")
     @patch("src.core.app.Handler")
     @patch("src.core.app.Gemini")
-    @patch("src.core.app.Scraper")
+    @patch("src.core.app.PluginRegistry")
     @patch("src.core.app.Orchestrator")
     @patch("src.core.app.genai.Client")
     def test_init_no_api_key(
         self,
         mock_client_class,
         mock_orchestrator_class,
-        mock_scraper_class,
+        mock_plugin_registry_class,
         mock_gemini_class,
         mock_handler_class,
         mock_editor_class,
@@ -97,6 +103,11 @@ class TestCore:
         temp_dir,
     ):
         """Test Core initialization without API key."""
+        mock_plugin_registry = MagicMock()
+        mock_plugin = MagicMock()
+        mock_plugin_registry.has_plugin.return_value = True
+        mock_plugin_registry.get_plugin.return_value = mock_plugin
+        mock_plugin_registry_class.return_value = mock_plugin_registry
         # Create preset without API key
         preset_path = temp_dir / "no_api.yml"
         import yaml
@@ -116,14 +127,14 @@ class TestCore:
     @patch("src.core.app.Editor")
     @patch("src.core.app.Handler")
     @patch("src.core.app.Gemini")
-    @patch("src.core.app.Scraper")
+    @patch("src.core.app.PluginRegistry")
     @patch("src.core.app.Orchestrator")
     @patch("src.core.app.genai.Client")
     def test_init_upload_disabled(
         self,
         mock_client_class,
         mock_orchestrator_class,
-        mock_scraper_class,
+        mock_plugin_registry_class,
         mock_gemini_class,
         mock_handler_class,
         mock_editor_class,
@@ -147,23 +158,29 @@ class TestCore:
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
 
+        mock_plugin_registry = MagicMock()
+        mock_plugin = MagicMock()
+        mock_plugin_registry.has_plugin.return_value = True
+        mock_plugin_registry.get_plugin.return_value = mock_plugin
+        mock_plugin_registry_class.return_value = mock_plugin_registry
+
         core = Core(workspace=str(temp_dir), path=str(preset_path))
 
         assert core.uploader is None
         assert mock_uploader_class.called is False
 
-    @patch("main.Uploader")
-    @patch("main.Editor")
-    @patch("main.Handler")
-    @patch("main.Gemini")
-    @patch("main.Scraper")
-    @patch("main.Orchestrator")
-    @patch("main.genai.Client")
+    @patch("src.core.app.Uploader")
+    @patch("src.core.app.Editor")
+    @patch("src.core.app.Handler")
+    @patch("src.core.app.Gemini")
+    @patch("src.core.app.PluginRegistry")
+    @patch("src.core.app.Orchestrator")
+    @patch("src.core.app.genai.Client")
     def test_time_left_no_limit(
         self,
         mock_client_class,
         mock_orchestrator_class,
-        mock_scraper_class,
+        mock_plugin_registry_class,
         mock_gemini_class,
         mock_handler_class,
         mock_editor_class,
@@ -175,6 +192,12 @@ class TestCore:
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
 
+        mock_plugin_registry = MagicMock()
+        mock_plugin = MagicMock()
+        mock_plugin_registry.has_plugin.return_value = True
+        mock_plugin_registry.get_plugin.return_value = mock_plugin
+        mock_plugin_registry_class.return_value = mock_plugin_registry
+
         core = Core(workspace=str(temp_dir), path=str(temp_preset_file))
         time_left = core._time_left()
         assert time_left == 0
@@ -183,7 +206,7 @@ class TestCore:
     @patch("src.core.app.Editor")
     @patch("src.core.app.Handler")
     @patch("src.core.app.Gemini")
-    @patch("src.core.app.Scraper")
+    @patch("src.core.app.PluginRegistry")
     @patch("src.core.app.Orchestrator")
     @patch("src.core.app.genai.Client")
     @pytest.mark.asyncio
@@ -191,7 +214,7 @@ class TestCore:
         self,
         mock_client_class,
         mock_orchestrator_class,
-        mock_scraper_class,
+        mock_plugin_registry_class,
         mock_gemini_class,
         mock_handler_class,
         mock_editor_class,
@@ -202,6 +225,12 @@ class TestCore:
         """Test handling of KeyboardInterrupt in run loop."""
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
+
+        mock_plugin_registry = MagicMock()
+        mock_plugin = MagicMock()
+        mock_plugin_registry.has_plugin.return_value = True
+        mock_plugin_registry.get_plugin.return_value = mock_plugin
+        mock_plugin_registry_class.return_value = mock_plugin_registry
 
         mock_orchestrator = MagicMock()
         mock_orchestrator.process = AsyncMock()
@@ -215,5 +244,6 @@ class TestCore:
             patch("builtins.input", return_value="test prompt"),
             patch("src.core.app.print_banner"),
         ):
-            with pytest.raises(KeyboardInterrupt):
-                await core.run()
+            await core.run()
+            # KeyboardInterrupt is caught and handled gracefully, so core should stop running
+            assert core.is_running is False

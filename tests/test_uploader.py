@@ -15,8 +15,8 @@ from src.youtube import Uploader
 class TestUploader:
     """Test suite for Uploader class."""
 
-    @patch("youtube.uploader.InstalledAppFlow")
-    @patch("youtube.uploader.build")
+    @patch("src.youtube.uploader.InstalledAppFlow")
+    @patch("src.youtube.uploader.build")
     def test_init_success(self, mock_build, mock_flow_class, temp_dir):
         """Test successful Uploader initialization."""
         secrets_file = temp_dir / "secrets.json"
@@ -47,7 +47,7 @@ class TestUploader:
 
         with (
             patch.object(Path, "exists", path_exists),
-            patch("youtube.uploader.Credentials") as mock_creds_class,
+            patch("src.youtube.uploader.Credentials") as mock_creds_class,
         ):
             mock_creds_class.from_authorized_user_file.return_value = mock_credentials
             uploader = Uploader(name="test", auth_token=secrets_path_str)
@@ -61,8 +61,8 @@ class TestUploader:
         with pytest.raises(FileNotFoundError, match="OAuth secrets file not found"):
             Uploader(name="test", auth_token=str(fake_secrets))
 
-    @patch("youtube.uploader.InstalledAppFlow")
-    @patch("youtube.uploader.build", return_value=None)
+    @patch("src.youtube.uploader.InstalledAppFlow")
+    @patch("src.youtube.uploader.build", return_value=None)
     def test_upload_success(
         self, mock_build, mock_flow_class, temp_dir, mock_youtube_service
     ):
@@ -108,7 +108,7 @@ class TestUploader:
 
         with (
             patch.object(Path, "exists", path_exists_mock),
-            patch("youtube.uploader.Credentials") as mock_creds_class,
+            patch("src.youtube.uploader.Credentials") as mock_creds_class,
         ):
             mock_creds_class.from_authorized_user_file.return_value = mock_credentials
             uploader = Uploader(name="test", auth_token=secrets_path_str)
@@ -130,8 +130,8 @@ class TestUploader:
             assert url is not None
             assert "youtube.com" in url or "test_video_id" in url
 
-    @patch("youtube.uploader.InstalledAppFlow")
-    @patch("youtube.uploader.build", return_value=None)
+    @patch("src.youtube.uploader.InstalledAppFlow")
+    @patch("src.youtube.uploader.build", return_value=None)
     def test_upload_with_scheduling(
         self, mock_build, mock_flow_class, temp_dir, mock_youtube_service
     ):
@@ -176,7 +176,7 @@ class TestUploader:
 
         with (
             patch.object(Path, "exists", path_exists_token),
-            patch("youtube.uploader.Credentials") as mock_creds_class,
+            patch("src.youtube.uploader.Credentials") as mock_creds_class,
         ):
             mock_creds_class.from_authorized_user_file.return_value = mock_credentials
             uploader = Uploader(name="test", auth_token=secrets_path_str)
@@ -201,8 +201,8 @@ class TestUploader:
             assert scheduled is not None
             assert scheduled > last_upload
 
-    @patch("youtube.uploader.InstalledAppFlow")
-    @patch("youtube.uploader.build", return_value=None)
+    @patch("src.youtube.uploader.InstalledAppFlow")
+    @patch("src.youtube.uploader.build", return_value=None)
     def test_upload_resumable_error(
         self, mock_build, mock_flow_class, temp_dir, mock_youtube_service
     ):
@@ -247,7 +247,7 @@ class TestUploader:
 
         with (
             patch.object(Path, "exists", path_exists_token),
-            patch("youtube.uploader.Credentials") as mock_creds_class,
+            patch("src.youtube.uploader.Credentials") as mock_creds_class,
         ):
             mock_creds_class.from_authorized_user_file.return_value = mock_credentials
             uploader = Uploader(name="test", auth_token=secrets_path_str)
@@ -273,8 +273,8 @@ class TestUploader:
             with pytest.raises(ResumableUploadError):
                 uploader.upload(video_data)
 
-    @patch("youtube.uploader.InstalledAppFlow")
-    @patch("youtube.uploader.build")
+    @patch("src.youtube.uploader.InstalledAppFlow")
+    @patch("src.youtube.uploader.build")
     def test_authenticate_refresh_error(self, mock_build, mock_flow_class, temp_dir):
         """Test authentication with refresh error."""
         secrets_file = temp_dir / "secrets.json"
@@ -283,8 +283,8 @@ class TestUploader:
         )
 
         with (
-            patch("youtube.uploader.Credentials") as mock_creds_class,
-            patch("google.auth.transport.requests.Request") as mock_request,
+            patch("src.youtube.uploader.Credentials") as mock_creds_class,
+            patch("src.youtube.uploader.Request") as mock_request,
         ):
             mock_credentials = MagicMock(spec=Credentials)
             mock_credentials.valid = False

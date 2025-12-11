@@ -14,16 +14,14 @@ from src.response import QuotaExceededError
 def mock_orchestrator_dependencies(temp_dir, preset_handler, mock_gemini_client):
     """Create mocked dependencies for Orchestrator."""
     with (
-        patch("src.core.orchestrator.Scraper") as mock_scraper_class,
         patch("src.core.orchestrator.Gemini") as mock_gemini_class,
         patch("src.core.orchestrator.Editor") as mock_editor_class,
         patch("src.core.orchestrator.Handler") as mock_handler_class,
         patch("src.core.orchestrator.Uploader") as mock_uploader_class,
     ):
         # Create mock instances
-        mock_scraper = MagicMock()
-        mock_scraper.get_media.return_value = temp_dir / "media.mp4"
-        mock_scraper_class.return_value = mock_scraper
+        mock_plugin = MagicMock()
+        mock_plugin.get_media.return_value = temp_dir / "media.mp4"
 
         mock_gemini = MagicMock()
         mock_gemini.get_audio.return_value = str(temp_dir / "audio.wav")
@@ -45,7 +43,7 @@ def mock_orchestrator_dependencies(temp_dir, preset_handler, mock_gemini_client)
         mock_uploader_class.return_value = mock_uploader
 
         yield {
-            "scraper": mock_scraper,
+            "plugin": mock_plugin,
             "gemini": mock_gemini,
             "editor": mock_editor,
             "handler": mock_handler,
@@ -60,7 +58,7 @@ def orchestrator(mock_orchestrator_dependencies):
     deps = mock_orchestrator_dependencies
     return Orchestrator(
         preset=deps["preset"],
-        scraper=deps["scraper"],
+        plugin=deps["plugin"],
         gemini=deps["gemini"],
         editor=deps["editor"],
         caption=deps["handler"],
@@ -91,7 +89,7 @@ class TestOrchestrator:
             assert deps["gemini"].get_response.called
             assert deps["gemini"].get_audio.called
             assert deps["handler"].get_captions.called
-            assert deps["scraper"].get_media.called
+            assert deps["plugin"].get_media.called
             assert deps["editor"].assemble.called
             assert deps["uploader"].upload.called
             assert result.exists()
@@ -110,7 +108,7 @@ class TestOrchestrator:
 
             orchestrator = Orchestrator(
                 preset=deps["preset"],
-                scraper=deps["scraper"],
+                plugin=deps["plugin"],
                 gemini=deps["gemini"],
                 editor=deps["editor"],
                 caption=deps["handler"],

@@ -13,8 +13,8 @@ from src.caption import Handler
 class TestCaptionHandler:
     """Test suite for caption.Handler class."""
 
-    @patch("spacy.load")
-    @patch("caption.caption.SpeechToText")
+    @patch("src.caption.caption.spacy.load")
+    @patch("src.caption.caption.SpeechToText")
     def test_init(self, mock_stt_class, mock_spacy_load, temp_dir):
         """Test Handler initialization."""
         mock_stt = MagicMock()
@@ -27,8 +27,8 @@ class TestCaptionHandler:
         assert handler.font == "Arial"
         assert handler.stt == mock_stt
 
-    @patch("spacy.load")
-    @patch("caption.caption.SpeechToText")
+    @patch("src.caption.caption.spacy.load")
+    @patch("src.caption.caption.SpeechToText")
     def test_format_timestamp(self, mock_stt_class, mock_spacy_load, temp_dir):
         """Test timestamp formatting."""
         mock_stt_class.return_value = MagicMock()
@@ -41,8 +41,8 @@ class TestCaptionHandler:
         assert handler._format_timestamp(65.5) == "0:01:05.50"
         assert handler._format_timestamp(3661.25) == "1:01:01.25"
 
-    @patch("spacy.load")
-    @patch("caption.caption.SpeechToText")
+    @patch("src.caption.caption.spacy.load")
+    @patch("src.caption.caption.SpeechToText")
     def test_get_captions_success(
         self, mock_stt_class, mock_spacy_load, temp_dir, sample_audio_file
     ):
@@ -92,8 +92,8 @@ class TestCaptionHandler:
         assert result.suffix == ".ass"
         assert "Dialogue" in result.read_text()
 
-    @patch("spacy.load")
-    @patch("caption.caption.SpeechToText")
+    @patch("src.caption.caption.spacy.load")
+    @patch("src.caption.caption.SpeechToText")
     def test_get_captions_missing_audio(
         self, mock_stt_class, mock_spacy_load, temp_dir
     ):
@@ -107,8 +107,8 @@ class TestCaptionHandler:
         with pytest.raises(FileNotFoundError, match="Audio file not found"):
             handler.get_captions(fake_audio)
 
-    @patch("spacy.load")
-    @patch("caption.caption.SpeechToText")
+    @patch("src.caption.caption.spacy.load")
+    @patch("src.caption.caption.SpeechToText")
     def test_get_captions_no_words(
         self, mock_stt_class, mock_spacy_load, temp_dir, sample_audio_file
     ):
@@ -135,8 +135,8 @@ class TestCaptionHandler:
         content = result.read_text()
         assert "Test transcript" in content
 
-    @patch("spacy.load")
-    @patch("caption.caption.SpeechToText")
+    @patch("src.caption.caption.spacy.load")
+    @patch("src.caption.caption.SpeechToText")
     def test_apply_pos_coloring(self, mock_stt_class, mock_spacy_load, temp_dir):
         """Test part-of-speech coloring."""
         mock_stt_class.return_value = MagicMock()

@@ -3,7 +3,7 @@ import random
 import re
 import time
 from google.genai import types
-from google import genai
+import google.genai as genai
 from google.genai.errors import ClientError, ServerError
 import wave
 import os
