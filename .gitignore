@@ -7,7 +7,7 @@ __pycache__/
 !config/
 .configs/
 tokens/
-run.py
+
 *.log
 logs/
 .*

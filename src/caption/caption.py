@@ -4,6 +4,12 @@ from .stt import SpeechToText
 from pathlib import Path
 from typing import List, Dict, Union, Any
 
+try:
+    import en_core_web_md
+    SPACY_MODEL_AVAILABLE = True
+except ImportError:
+    SPACY_MODEL_AVAILABLE = False
+
 
 class Handler:
     """
@@ -25,7 +31,17 @@ class Handler:
 
         self.stt: SpeechToText = SpeechToText(model_size)
         self.font: str = font
-        self.nlp = spacy.load("en_core_web_md", disable=["ner", "lemmatizer"])
+        
+        if SPACY_MODEL_AVAILABLE:
+            self.nlp = en_core_web_md.load(disable=["ner", "lemmatizer"])
+        else:
+            try:
+                self.nlp = spacy.load("en_core_web_md", disable=["ner", "lemmatizer"])
+            except OSError:
+                raise RuntimeError(
+                    "spaCy model 'en_core_web_md' not found. "
+                    "Please install it with: uv run python -m spacy download en_core_web_md"
+                )
 
         self.header: str = f"""[Script Info]
 ScriptType: v4.00+
