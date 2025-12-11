@@ -1,6 +1,6 @@
-from preset import YmlHandler
+from src.preset import YmlHandler
 from typing import Dict, List
-from utils.constants import DEFAULT_PROMPT_FILE
+from src.utils.constants import DEFAULT_PROMPT_FILE
 
 
 class Prompt:
@@ -9,7 +9,7 @@ class Prompt:
     """
 
     def __init__(self) -> None:
-        """Initialize prompt handler and load templates from prompt.yml."""
+        """Initialize prompt handler and load templates from config/prompt.yml."""
         self.prompts: YmlHandler = YmlHandler(DEFAULT_PROMPT_FILE)
 
         self.output_format: Dict[str, str] = {

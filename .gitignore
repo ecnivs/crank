@@ -5,8 +5,7 @@ __pycache__/
 *.mp4
 !example.mp4
 .venv/
-!preset.yml
-!prompt.yml
+!config/
 .configs/
 tokens/
 run.py

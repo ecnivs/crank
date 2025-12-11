@@ -8,7 +8,7 @@ from pathlib import Path
 import datetime
 import logging
 from typing import Optional, Union, Dict, Any
-from utils.constants import DEFAULT_CHANNEL_NAME, DEFAULT_SECRETS_FILE
+from src.utils.constants import DEFAULT_CHANNEL_NAME, DEFAULT_SECRETS_FILE
 
 
 class Uploader:

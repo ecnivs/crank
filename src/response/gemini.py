@@ -9,7 +9,7 @@ import wave
 import os
 from pathlib import Path
 from typing import Union, Dict, Optional, List
-from utils.constants import GEMINI_MODELS, DEFAULT_VOICE
+from src.utils.constants import GEMINI_MODELS, DEFAULT_VOICE
 
 
 class QuotaExceededError(RuntimeError):

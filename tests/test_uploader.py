@@ -9,7 +9,7 @@ import pytest
 from google.auth.exceptions import RefreshError
 from google.oauth2.credentials import Credentials
 from googleapiclient.http import ResumableUploadError
-from youtube import Uploader
+from src.youtube import Uploader
 
 
 class TestUploader:

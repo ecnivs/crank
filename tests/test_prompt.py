@@ -3,7 +3,7 @@ Tests for prompt.Prompt class.
 """
 
 import pytest
-from prompt import Prompt
+from src.prompt import Prompt
 
 
 @pytest.fixture

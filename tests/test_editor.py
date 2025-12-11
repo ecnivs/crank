@@ -7,7 +7,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from video import Editor
+from src.video import Editor
 
 
 class TestEditor:

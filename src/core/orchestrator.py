@@ -1,19 +1,24 @@
-import logging
-import datetime
-from pathlib import Path
-from googleapiclient.http import ResumableUploadError
+"""Orchestrates the end-to-end video generation pipeline."""
+
 import asyncio
-from prompt import Prompt
-from preset import YmlHandler
-from media import Scraper
-from response import Gemini, QuotaExceededError, TTSUnavailableError
-from video import Editor
-from caption import Handler
-from youtube import Uploader
+import datetime
+import logging
 import re
-from typing import List, Dict, Union, Optional, Callable, TypeVar, Any
-from utils.colors import Colors
-from utils.constants import DEFAULT_GEMINI_MODEL
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
+
+from googleapiclient.http import ResumableUploadError
+
+from src.caption import Handler
+from src.media import Scraper
+from src.preset import YmlHandler
+from src.prompt import Prompt
+from src.response import Gemini, QuotaExceededError, TTSUnavailableError
+from src.utils.colors import Colors
+from src.utils.constants import DEFAULT_GEMINI_MODEL
+from src.video import Editor
+from src.youtube import Uploader
+
 
 T = TypeVar("T")
 
@@ -23,7 +28,7 @@ UPLOAD_LIMIT_MESSAGE = "Upload limit reached."
 
 
 class Orchestrator:
-    """Coordinates video generation pipeline."""
+    """Coordinates the video generation pipeline."""
 
     def __init__(
         self,

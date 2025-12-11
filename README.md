@@ -43,7 +43,7 @@ The other credentials are stored as JSON files inside the root directory:
 ## ⚙️ Customization
 **Crank** is fully configurable. You can adjust prompts, upload behavior, and other settings using your preferred method.
 
-#### Default settings in `preset.yml`
+#### Default settings in `config/preset.yml`
 Change the following directly in the file:
 - `NAME`: The channel name
 - `PROMPT`: Topic or idea to base the generated video on
@@ -54,7 +54,7 @@ Change the following directly in the file:
 - `OAUTH_PATH`: Path to OAuth credentials (defaults to `secrets.json`)
 - `FONT`: Defines text font (defaults to `Comic Sans MS`)
 
-#### Default settings in `prompt.yml`
+#### Default settings in `config/prompt.yml`
 - `GET_CONTENT`: Guidelines for generating the transcript
 - `GET_TITLE`: Guidelines for generating the title
 - `GET_SEARCH_TERM`: YouTube search term used for background video scraping

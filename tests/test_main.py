@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from main import Core, get_channel_name_from_preset, get_version
+from src.core.app import Core, get_channel_name_from_preset, get_version
 
 
 class TestMainFunctions:
@@ -47,13 +47,13 @@ class TestMainFunctions:
 class TestCore:
     """Test suite for Core class."""
 
-    @patch("main.Uploader")
-    @patch("main.Editor")
-    @patch("main.Handler")
-    @patch("main.Gemini")
-    @patch("main.Scraper")
-    @patch("main.Orchestrator")
-    @patch("main.genai.Client")
+    @patch("src.core.app.Uploader")
+    @patch("src.core.app.Editor")
+    @patch("src.core.app.Handler")
+    @patch("src.core.app.Gemini")
+    @patch("src.core.app.Scraper")
+    @patch("src.core.app.Orchestrator")
+    @patch("src.core.app.genai.Client")
     def test_init_success(
         self,
         mock_client_class,
@@ -78,13 +78,13 @@ class TestCore:
         assert core.client == mock_client
         assert core.is_running is True
 
-    @patch("main.Uploader")
-    @patch("main.Editor")
-    @patch("main.Handler")
-    @patch("main.Gemini")
-    @patch("main.Scraper")
-    @patch("main.Orchestrator")
-    @patch("main.genai.Client")
+    @patch("src.core.app.Uploader")
+    @patch("src.core.app.Editor")
+    @patch("src.core.app.Handler")
+    @patch("src.core.app.Gemini")
+    @patch("src.core.app.Scraper")
+    @patch("src.core.app.Orchestrator")
+    @patch("src.core.app.genai.Client")
     def test_init_no_api_key(
         self,
         mock_client_class,
@@ -112,13 +112,13 @@ class TestCore:
             with pytest.raises(RuntimeError, match="GEMINI_API_KEY not found"):
                 Core(workspace=str(temp_dir), path=str(preset_path))
 
-    @patch("main.Uploader")
-    @patch("main.Editor")
-    @patch("main.Handler")
-    @patch("main.Gemini")
-    @patch("main.Scraper")
-    @patch("main.Orchestrator")
-    @patch("main.genai.Client")
+    @patch("src.core.app.Uploader")
+    @patch("src.core.app.Editor")
+    @patch("src.core.app.Handler")
+    @patch("src.core.app.Gemini")
+    @patch("src.core.app.Scraper")
+    @patch("src.core.app.Orchestrator")
+    @patch("src.core.app.genai.Client")
     def test_init_upload_disabled(
         self,
         mock_client_class,
@@ -179,13 +179,13 @@ class TestCore:
         time_left = core._time_left()
         assert time_left == 0
 
-    @patch("main.Uploader")
-    @patch("main.Editor")
-    @patch("main.Handler")
-    @patch("main.Gemini")
-    @patch("main.Scraper")
-    @patch("main.Orchestrator")
-    @patch("main.genai.Client")
+    @patch("src.core.app.Uploader")
+    @patch("src.core.app.Editor")
+    @patch("src.core.app.Handler")
+    @patch("src.core.app.Gemini")
+    @patch("src.core.app.Scraper")
+    @patch("src.core.app.Orchestrator")
+    @patch("src.core.app.genai.Client")
     @pytest.mark.asyncio
     async def test_run_keyboard_interrupt(
         self,
@@ -213,7 +213,7 @@ class TestCore:
         # Mock input to trigger prompt
         with (
             patch("builtins.input", return_value="test prompt"),
-            patch("main.print_banner"),
+            patch("src.core.app.print_banner"),
         ):
             with pytest.raises(KeyboardInterrupt):
                 await core.run()

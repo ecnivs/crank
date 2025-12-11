@@ -1,24 +1,24 @@
 """
-Integration tests for orchestrator.Orchestrator class.
+Integration tests for src.core.orchestrator.Orchestrator class.
 """
 
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from orchestrator import Orchestrator
-from response import QuotaExceededError
+from src.core.orchestrator import Orchestrator
+from src.response import QuotaExceededError
 
 
 @pytest.fixture
 def mock_orchestrator_dependencies(temp_dir, preset_handler, mock_gemini_client):
     """Create mocked dependencies for Orchestrator."""
     with (
-        patch("orchestrator.Scraper") as mock_scraper_class,
-        patch("orchestrator.Gemini") as mock_gemini_class,
-        patch("orchestrator.Editor") as mock_editor_class,
-        patch("orchestrator.Handler") as mock_handler_class,
-        patch("orchestrator.Uploader") as mock_uploader_class,
+        patch("src.core.orchestrator.Scraper") as mock_scraper_class,
+        patch("src.core.orchestrator.Gemini") as mock_gemini_class,
+        patch("src.core.orchestrator.Editor") as mock_editor_class,
+        patch("src.core.orchestrator.Handler") as mock_handler_class,
+        patch("src.core.orchestrator.Uploader") as mock_uploader_class,
     ):
         # Create mock instances
         mock_scraper = MagicMock()
@@ -77,7 +77,7 @@ class TestOrchestrator:
         deps = mock_orchestrator_dependencies
 
         # Create mock prompt
-        with patch("orchestrator.Prompt") as mock_prompt_class:
+        with patch("src.core.orchestrator.Prompt") as mock_prompt_class:
             mock_prompt = MagicMock()
             mock_prompt.build.return_value = "Test prompt"
             mock_prompt_class.return_value = mock_prompt
@@ -103,7 +103,7 @@ class TestOrchestrator:
         """Test processing without uploader."""
         deps = mock_orchestrator_dependencies
 
-        with patch("orchestrator.Prompt") as mock_prompt_class:
+        with patch("src.core.orchestrator.Prompt") as mock_prompt_class:
             mock_prompt = MagicMock()
             mock_prompt.build.return_value = "Test prompt"
             mock_prompt_class.return_value = mock_prompt
@@ -131,7 +131,7 @@ class TestOrchestrator:
         """Test handling of quota exceeded error."""
         deps = mock_orchestrator_dependencies
 
-        with patch("orchestrator.Prompt") as mock_prompt_class:
+        with patch("src.core.orchestrator.Prompt") as mock_prompt_class:
             mock_prompt = MagicMock()
             mock_prompt.build.return_value = "Test prompt"
             mock_prompt_class.return_value = mock_prompt
@@ -156,7 +156,7 @@ class TestOrchestrator:
         """Test handling of missing transcript in response."""
         deps = mock_orchestrator_dependencies
 
-        with patch("orchestrator.Prompt") as mock_prompt_class:
+        with patch("src.core.orchestrator.Prompt") as mock_prompt_class:
             mock_prompt = MagicMock()
             mock_prompt.build.return_value = "Test prompt"
             mock_prompt_class.return_value = mock_prompt
@@ -175,11 +175,11 @@ class TestOrchestrator:
     ):
         """Test handling of ResumableUploadError during upload."""
         from googleapiclient.http import ResumableUploadError
-        from response.gemini import QuotaExceededError
+        from src.response.gemini import QuotaExceededError
 
         deps = mock_orchestrator_dependencies
 
-        with patch("orchestrator.Prompt") as mock_prompt_class:
+        with patch("src.core.orchestrator.Prompt") as mock_prompt_class:
             mock_prompt = MagicMock()
             mock_prompt.build.return_value = "Test prompt"
             mock_prompt_class.return_value = mock_prompt

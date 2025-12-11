@@ -1,5 +1,5 @@
 """
-Tests for response.Gemini class.
+Tests for src.response.Gemini class.
 """
 
 from pathlib import Path
@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from response import Gemini, QuotaExceededError
+from src.response import Gemini, QuotaExceededError
 
 
 class TestGemini:
@@ -107,7 +107,7 @@ class TestGemini:
         with pytest.raises(ValueError, match="Transcript must be a non-empty string"):
             gemini.get_audio("")
 
-    @patch("response.gemini.time.sleep")
+    @patch("src.response.gemini.time.sleep")
     def test_get_audio_quota_exceeded(self, mock_sleep, mock_gemini_client, temp_dir):
         """Test audio generation with quota exceeded."""
         from google.genai.errors import ClientError
@@ -141,7 +141,7 @@ class TestGemini:
         result = gemini.get_response("test", model="9.9")
         assert result is None
 
-    @patch("response.gemini.time.sleep")
+    @patch("src.response.gemini.time.sleep")
     def test_get_response_fallback_model(
         self, mock_sleep, mock_gemini_client, temp_dir
     ):
@@ -170,7 +170,7 @@ class TestGemini:
         # Should eventually succeed or raise RuntimeError
         assert response is not None or True  # May fail with RuntimeError
 
-    @patch("response.gemini.time.sleep")
+    @patch("src.response.gemini.time.sleep")
     def test_get_response_quota_exceeded(
         self, mock_sleep, mock_gemini_client, temp_dir
     ):

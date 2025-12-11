@@ -3,7 +3,7 @@ Tests for preset.YmlHandler class.
 """
 
 import yaml
-from preset import YmlHandler
+from src.preset import YmlHandler
 
 
 class TestYmlHandler:
