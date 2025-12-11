@@ -12,3 +12,4 @@ tokens/
 run.py
 *.log
 logs/
+.*
