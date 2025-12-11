@@ -1,62 +1,56 @@
+"""YouTube scraping logic for the default plugin."""
+
 import logging
-from pathlib import Path
-from http.cookiejar import MozillaCookieJar
-from typing import Optional, List, Dict, Any, Tuple
-import yt_dlp
-from . import processor as media_processor
-import browser_cookie3
 import sys
 import os
+import time
+import re
+import math
+from pathlib import Path
+from http.cookiejar import MozillaCookieJar
+from typing import Any, Dict, Optional, List, Tuple
+
+import yt_dlp
+import browser_cookie3
+
+from .utils import NullLogger
+from .processor import VideoProcessor
 
 
-class NullLogger:
-    """Null logger to suppress yt-dlp output."""
+class YouTubeScraper:
+    """Handles YouTube video scraping, downloading, and cookie management."""
 
-    def debug(self, msg: object) -> None:
-        pass
-
-    def info(self, msg: object) -> None:
-        pass
-
-    def warning(self, msg: object) -> None:
-        pass
-
-    def error(self, msg: object) -> None:
-        pass
-
-    def critical(self, msg: object) -> None:
-        pass
-
-    def isEnabledFor(self, level: int) -> bool:
-        return False
-
-
-yt_dlp_logger = logging.getLogger("yt_dlp")
-yt_dlp_logger.setLevel(logging.CRITICAL)
-yt_dlp_logger.disabled = True
-
-
-class Scraper:
-    """Handles video scraping, downloading, clipping, and cookie management."""
-
-    def __init__(self, workspace: Path, cookies_file: Optional[Path] = None) -> None:
-        """
-        Initialize scraper with workspace and optional cookies file.
+    def __init__(
+        self, workspace: Path, config: Dict[str, Any], processor: Optional[VideoProcessor] = None
+    ) -> None:
+        """Initialize the YouTube scraper.
 
         Args:
-            workspace: Directory to store downloaded videos and temporary files.
-            cookies_file: Optional path to cookies.txt file. If None, cookies are auto-exported.
+            workspace: Directory for temporary files and downloads.
+            config: Plugin configuration dictionary.
+            processor: Optional video processor instance for text detection and duration checks.
         """
         self.workspace: Path = workspace
+        self.config: Dict[str, Any] = config
+        self.processor: Optional[VideoProcessor] = processor
         self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
         self.workspace.mkdir(exist_ok=True)
-
-        self.cookies_file: Path = cookies_file or self._export_cookies_from_browser()
+        self.cookies_file: Path = self._get_cookies_file()
         self._last_cookie_refresh: Optional[float] = None
 
-    def _export_cookies_from_browser(self) -> Path:
+    def _get_cookies_file(self) -> Path:
+        """Get cookies file path from config or export from browser.
+
+        Returns:
+            Path to cookies file.
         """
-        Export YouTube cookies from installed browsers.
+        cookies_file = self.config.get("cookies_file")
+        if cookies_file:
+            return Path(cookies_file)
+        return self._export_cookies_from_browser()
+
+    def _export_cookies_from_browser(self) -> Path:
+        """Export YouTube cookies from installed browsers.
 
         Returns:
             Path: Path to saved cookies file.
@@ -82,8 +76,6 @@ class Scraper:
 
     def _refresh_cookies_if_needed(self) -> None:
         """Refresh cookies if older than 1 hour or missing."""
-        import time
-
         if (
             not self.cookies_file.exists()
             or self._last_cookie_refresh is None
@@ -93,8 +85,7 @@ class Scraper:
             self._export_cookies_from_browser()
 
     def _enrich_query(self, query: str) -> List[str]:
-        """
-        Enrich the incoming search term with visual modifiers and negatives.
+        """Enrich the incoming search term with visual modifiers and negatives.
 
         Args:
             query: Base search term.
@@ -133,8 +124,6 @@ class Scraper:
             "-reels",
         ]
 
-        import re
-
         base = re.sub(r"[^\w\s]", " ", query).strip()
 
         strong = f"{base} " + " ".join(positive_modifiers + negative_modifiers)
@@ -143,8 +132,7 @@ class Scraper:
         return [strong, light, minimal]
 
     def _extract_keywords(self, query: str) -> List[str]:
-        """
-        Extract core keywords from the user's query for relevance checks.
+        """Extract core keywords from the user's query for relevance checks.
 
         Args:
             query: User search query.
@@ -152,8 +140,6 @@ class Scraper:
         Returns:
             List[str]: Unique keywords of length >= 4.
         """
-        import re
-
         base = re.sub(r"[^\w\s]", " ", query).lower()
         tokens = [t for t in base.split() if len(t) >= 4]
         seen: set = set()
@@ -165,8 +151,7 @@ class Scraper:
         return keywords
 
     def _relevance_score(self, entry: Dict[str, Any], keywords: List[str]) -> int:
-        """
-        Count how many query keywords appear in title/description/tags.
+        """Count how many query keywords appear in title/description/tags.
 
         Args:
             entry: yt-dlp metadata entry.
@@ -185,8 +170,7 @@ class Scraper:
         return sum(1 for k in keywords if k in text)
 
     def _score_entry(self, entry: Dict[str, Any]) -> float:
-        """
-        Compute a heuristic score for a search entry based on metadata.
+        """Compute a heuristic score for a search entry based on metadata.
 
         Args:
             entry: yt-dlp metadata entry.
@@ -272,8 +256,6 @@ class Scraper:
 
         try:
             views = float(entry.get("view_count") or 0)
-            import math
-
             score += min(3.0, math.log10(views + 1.0))
         except Exception:
             pass
@@ -281,8 +263,7 @@ class Scraper:
         return score
 
     def _select_stream_url(self, meta: Dict[str, Any]) -> Optional[str]:
-        """
-        Pick a direct video URL from yt_dlp metadata for probing with ffmpeg.
+        """Pick a direct video URL from yt_dlp metadata for probing with ffmpeg.
 
         Args:
             meta: yt-dlp metadata dictionary.
@@ -313,8 +294,7 @@ class Scraper:
     def _is_text_heavy(
         self, input_src: str, duration: float, threshold: float = 22.0
     ) -> bool:
-        """
-        Determine if the video likely contains persistent burned-in text/overlays.
+        """Determine if the video likely contains persistent burned-in text/overlays.
 
         Args:
             input_src: Path or URL to the video source.
@@ -324,15 +304,16 @@ class Scraper:
         Returns:
             bool: True if text overlays are detected above threshold.
         """
+        if not self.processor:
+            return False
         target = min(60.0, duration)
-        start, end, sub_score = media_processor.choose_best_window(
+        start, end, sub_score = self.processor.choose_best_window(
             input_src, duration, target
         )
         return sub_score > threshold
 
-    def _download_video(self, query: str, max_results: int = 10) -> Path:
-        """
-        Download a video from YouTube using yt_dlp with cookies.
+    def download_video(self, query: str, max_results: int = 10) -> Path:
+        """Download a video from YouTube using yt_dlp with cookies.
 
         Args:
             query: Search term or URL to download.
@@ -483,11 +464,9 @@ class Scraper:
             )
             probe_url = self._select_stream_url(meta) or url
             vid_duration = float(meta.get("duration") or 0)
-            if vid_duration <= 0:
+            if vid_duration <= 0 and self.processor:
                 try:
-                    import media.processor as media_processor
-
-                    vid_duration = media_processor.get_video_duration(Path(url))
+                    vid_duration = self.processor.get_video_duration(Path(url))
                 except Exception:
                     vid_duration = 0
 
@@ -501,12 +480,12 @@ class Scraper:
                 self.logger.debug(f"Subtitle pre-check failed: {check_err}")
 
             start_time, end_time, _ = (0.0, 60.0, 0.0)
-            if vid_duration > 0:
+            if vid_duration > 0 and self.processor:
                 try:
                     self.logger.info(
                         f"Selecting best window for candidate {i + 1}/{max_try}"
                     )
-                    start_time, end_time, _ = media_processor.choose_best_window(
+                    start_time, end_time, _ = self.processor.choose_best_window(
                         probe_url, vid_duration, 60.0
                     )
                 except Exception as win_err:
@@ -716,19 +695,3 @@ class Scraper:
         raise RuntimeError(
             f"Unable to download any video for query: {query}. All attempts failed."
         )
-
-    def get_media(self, term: str) -> Path:
-        """
-        Search, download, clip, and return path to short video.
-
-        Args:
-            term: Search term for YouTube video content.
-
-        Returns:
-            Path: Path to final clipped video.
-        """
-        video_path: Path = self._download_video(term)
-        short_path: Path = media_processor.process_to_short(video_path, self.workspace)
-        video_path.unlink(missing_ok=True)
-        self.logger.info(f"Video template stored at {short_path}")
-        return short_path

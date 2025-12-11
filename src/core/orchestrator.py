@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 from googleapiclient.http import ResumableUploadError
 
 from src.caption import Handler
-from src.media import Scraper
+from src.plugins.base import BackgroundVideoPlugin
 from src.preset import YmlHandler
 from src.prompt import Prompt
 from src.response import Gemini, QuotaExceededError, TTSUnavailableError
@@ -33,7 +33,7 @@ class Orchestrator:
     def __init__(
         self,
         preset: YmlHandler,
-        scraper: Scraper,
+        plugin: BackgroundVideoPlugin,
         gemini: Gemini,
         editor: Editor,
         caption: Handler,
@@ -41,7 +41,7 @@ class Orchestrator:
     ) -> None:
         self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
         self.preset: YmlHandler = preset
-        self.scraper: Scraper = scraper
+        self.plugin: BackgroundVideoPlugin = plugin
         self.gemini: Gemini = gemini
         self.editor: Editor = editor
         self.caption: Handler = caption
@@ -111,9 +111,8 @@ class Orchestrator:
         Returns:
             Path: Path to assembled video file.
         """
-        search_term = data.get("search_term", "")
-        self.logger.debug(f"Searching for media: {search_term}")
-        media_path = self.scraper.get_media(search_term)
+        self.logger.debug("Getting background video from plugin")
+        media_path = self.plugin.get_media(data)
         self.logger.debug("Media downloaded")
 
         transcript = data.get("transcript", "")
@@ -334,7 +333,6 @@ class Orchestrator:
         await self._print_success_output("Generated Content", title)
 
         transcript = result.get("transcript", "")
-        search_term = result.get("search_term", "")
 
         try:
             audio_path = await self._execute_with_loading(
@@ -351,8 +349,11 @@ class Orchestrator:
         )
         await self._print_success_output("Captions path", str(ass_path))
 
+        def get_background_video() -> Path:
+            return self.plugin.get_media(result)
+
         media_path = await self._execute_with_loading(
-            "Preparing background video", self.scraper.get_media, search_term
+            "Preparing background video", get_background_video
         )
         await self._print_success_output("Background video path", str(media_path))
 

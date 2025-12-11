@@ -19,6 +19,8 @@ from dotenv import load_dotenv
 from google import genai
 
 from src.core.orchestrator import Orchestrator
+from src.plugins.base import BackgroundVideoPlugin
+from src.plugins.registry import PluginRegistry
 from src.preset import YmlHandler
 from src.response import Gemini, QuotaExceededError
 from src.utils.colors import Colors
@@ -32,7 +34,6 @@ from src.utils.constants import (
 from src.video import Editor
 from src.caption import Handler
 from src.youtube import Uploader
-from src.media import Scraper
 
 
 def setup_logging(log_file: Path = Path("logs/crank.log")) -> None:
@@ -194,9 +195,26 @@ class Core:
                 auth_token=self.preset.get("OAUTH_PATH", str(DEFAULT_SECRETS_FILE)),
             )
 
+        plugins_dir = Path(__file__).parents[2] / "plugins"
+        plugin_registry = PluginRegistry(plugins_dir)
+        plugin_name = self.preset.get("BACKGROUND_PLUGIN", "default")
+        
+        if not plugin_registry.has_plugin(plugin_name):
+            self.logger.warning(
+                f"Plugin '{plugin_name}' not found. Falling back to 'default' plugin."
+            )
+            plugin_name = "default"
+        
+        plugin = plugin_registry.get_plugin(plugin_name, self.workspace)
+        if plugin is None:
+            raise RuntimeError(
+                f"Failed to load plugin '{plugin_name}'. "
+                f"Available plugins: {plugin_registry.list_plugins()}"
+            )
+
         self.orchestrator: Orchestrator = Orchestrator(
             preset=self.preset,
-            scraper=Scraper(workspace=self.workspace),
+            plugin=plugin,
             gemini=Gemini(client=self.client, workspace=self.workspace),
             editor=Editor(workspace=self.workspace),
             caption=Handler(
