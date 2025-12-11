@@ -120,10 +120,10 @@ Your support helps keep the project active and enables new features.
 </div>
 
 ## 🧪 Testing
-For information about running tests, see [docs/TESTING.md](docs/TESTING.md).
+For information about running tests, see [TESTING.md](docs/TESTING.md).
 
 ## 🔌 Plugin Development
-For information about creating custom background video plugins, see [docs/PLUGIN_GUIDE.md](docs/PLUGIN_GUIDE.md).
+For information about creating custom background video plugins, see [PLUGIN_GUIDE.md](docs/PLUGIN_GUIDE.md).
 
 ## 🙌 Contributing
 Feel free to:
