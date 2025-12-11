@@ -280,8 +280,18 @@ class Core:
                 self.is_running = False
                 return
             except KeyboardInterrupt:
+                self.logger.info("Interrupted by user, stopping main loop.")
                 self.is_running = False
-                print()
+                print(f"\n{Colors.GREEN}OK{Colors.RESET} Exiting cleanly...\n")
+                return
+            except SystemError as e:
+                if "KeyboardInterrupt" in str(e):
+                    self.logger.info(
+                        "SystemError reported KeyboardInterrupt; exiting cleanly."
+                    )
+                    self.is_running = False
+                    print(f"\n{Colors.GREEN}OK{Colors.RESET} Exiting cleanly...\n")
+                    return
                 raise
             except Exception as e:
                 self.logger.error(f"Error during processing: {e}", exc_info=True)
