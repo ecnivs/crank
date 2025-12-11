@@ -1,3 +1,3 @@
-from .gemini import Gemini, QuotaExceededError
+from .gemini import Gemini, QuotaExceededError, TTSUnavailableError
 
-__all__ = ["Gemini", "QuotaExceededError"]
+__all__ = ["Gemini", "QuotaExceededError", "TTSUnavailableError"]

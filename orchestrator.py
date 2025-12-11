@@ -6,7 +6,7 @@ import asyncio
 from prompt import Prompt
 from preset import YmlHandler
 from media import Scraper
-from response import Gemini, QuotaExceededError
+from response import Gemini, QuotaExceededError, TTSUnavailableError
 from video import Editor
 from caption import Handler
 from youtube import Uploader
@@ -212,6 +212,13 @@ class Orchestrator:
             print(
                 f"\r{Colors.YELLOW}{message}{Colors.RESET} {Colors.RED}✗{Colors.RESET}"
             )
+            raise
+        except TTSUnavailableError as e:
+            await self._stop_loading_task(stop_event, loading_task)
+            print(
+                f"\r{Colors.YELLOW}{message}{Colors.RESET} {Colors.RED}✗{Colors.RESET}   "
+            )
+            await self._print_error_message(str(e))
             raise
         except Exception as e:
             await self._stop_loading_task(stop_event, loading_task)

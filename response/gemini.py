@@ -4,7 +4,7 @@ import re
 import time
 from google.genai import types
 from google import genai
-from google.genai.errors import ClientError
+from google.genai.errors import ClientError, ServerError
 import wave
 import os
 from pathlib import Path
@@ -14,6 +14,12 @@ from utils.constants import GEMINI_MODELS, DEFAULT_VOICE
 
 class QuotaExceededError(RuntimeError):
     """Exception raised when API quota is exceeded after all retries."""
+
+    pass
+
+
+class TTSUnavailableError(RuntimeError):
+    """Exception raised when TTS service is unavailable after retries."""
 
     pass
 
@@ -79,6 +85,16 @@ class Gemini:
             return "429" in error_str and "RESOURCE_EXHAUSTED" in error_str
         return False
 
+    def _is_retryable_server_error(self, error: Exception) -> bool:
+        """
+        Determine if error is a server-side issue worth retrying.
+        """
+        if isinstance(error, ServerError):
+            # ServerError covers 5xx responses like 503 UNAVAILABLE.
+            return True
+        error_str = str(error)
+        return "503" in error_str or "UNAVAILABLE" in error_str or "5xx" in error_str
+
     def _save_to_wav(self, pcm: bytes) -> str:
         """
         Save PCM audio data to WAV file.
@@ -98,7 +114,7 @@ class Gemini:
             wf.writeframes(pcm)
         return path
 
-    def get_audio(self, transcript: str) -> str:
+    def get_audio(self, transcript: str, max_retries: int = 3) -> str:
         """
         Generate speech audio from transcript using TTS.
 
@@ -115,45 +131,54 @@ class Gemini:
         if not transcript:
             raise ValueError("Transcript must be a non-empty string")
 
-        try:
-            response = self.client.models.generate_content(
-                model="gemini-2.5-flash-preview-tts",
-                contents=transcript,
-                config=types.GenerateContentConfig(
-                    response_modalities=["AUDIO"],
-                    speech_config=types.SpeechConfig(
-                        voice_config=types.VoiceConfig(
-                            prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                                voice_name=self.voice,
+        attempt = 0
+        while attempt < max_retries:
+            attempt += 1
+            try:
+                response = self.client.models.generate_content(
+                    model="gemini-2.5-flash-preview-tts",
+                    contents=transcript,
+                    config=types.GenerateContentConfig(
+                        response_modalities=["AUDIO"],
+                        speech_config=types.SpeechConfig(
+                            voice_config=types.VoiceConfig(
+                                prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                                    voice_name=self.voice,
+                                )
                             )
-                        )
+                        ),
                     ),
-                ),
-            )
-
-            if not response.candidates:
-                raise ValueError("No candidates returned from TTS model")
-            if not response.candidates[0].content.parts:
-                raise ValueError("No content parts returned in response")
-
-            data = response.candidates[0].content.parts[0].inline_data.data
-            if not data:
-                raise ValueError("No audio data found in response")
-
-            path = self._save_to_wav(data)
-            self.logger.info(f"Audio saved to {path}")
-            return path
-
-        except Exception as e:
-            if self._is_quota_exceeded(e):
-                raise QuotaExceededError(
-                    "Daily API quota exceeded. Please wait 24 hours before trying again or check your billing plan."
                 )
-            else:
-                raise RuntimeError(
-                    f"Failed to generate audio from transcript. "
-                    f"Error: {e}\n"
-                    f"Please check your API key and ensure the transcript is valid."
+
+                if not response.candidates:
+                    raise ValueError("No candidates returned from TTS model")
+                if not response.candidates[0].content.parts:
+                    raise ValueError("No content parts returned in response")
+
+                data = response.candidates[0].content.parts[0].inline_data.data
+                if not data:
+                    raise ValueError("No audio data found in response")
+
+                path = self._save_to_wav(data)
+                self.logger.info(f"Audio saved to {path}")
+                return path
+
+            except Exception as e:
+                if self._is_quota_exceeded(e):
+                    raise QuotaExceededError(
+                        "Daily API quota exceeded. Please wait 24 hours before trying again or check your billing plan."
+                    )
+
+                if self._is_retryable_server_error(e) and attempt < max_retries:
+                    wait = (2**attempt) + random.uniform(0, 1)
+                    self.logger.warning(
+                        f"TTS server error on attempt {attempt}/{max_retries}: {e}. Retrying in {wait:.1f}s"
+                    )
+                    time.sleep(wait)
+                    continue
+
+                raise TTSUnavailableError(
+                    "TTS service unavailable after retries. Please try again shortly."
                 ) from e
 
     def get_response(
