@@ -123,7 +123,7 @@ Your support helps keep the project active and enables new features.
 For information about running tests, see [docs/TESTING.md](docs/TESTING.md).
 
 ## 🔌 Plugin Development
-Crank supports a plugin system for custom background video generation. Create plugins that use AI generation, custom APIs, or any other method you can imagine. To learn how to build your own plugins, check out the [Plugin Guide](docs/PLUGIN_GUIDE.md).
+For information about creating custom background video plugins, see [docs/PLUGIN_GUIDE.md](docs/PLUGIN_GUIDE.md).
 
 ## 🙌 Contributing
 Feel free to:
