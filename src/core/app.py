@@ -336,7 +336,9 @@ def main() -> None:
             core = Core(workspace, path)
             asyncio.run(core.run())
     except KeyboardInterrupt:
-        print(f"\n{Colors.GREEN}OK{Colors.RESET} {Colors.WHITE}Exiting cleanly...{Colors.RESET}\n")
+        print(
+            f"\n{Colors.GREEN}OK{Colors.RESET} {Colors.WHITE}Exiting cleanly...{Colors.RESET}\n"
+        )
         logging.info("Interrupted by user. Exiting cleanly...")
         sys.exit(0)
     except SystemExit:
