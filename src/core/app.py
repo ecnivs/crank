@@ -198,13 +198,13 @@ class Core:
         plugins_dir = Path(__file__).parents[2] / "plugins"
         plugin_registry = PluginRegistry(plugins_dir)
         plugin_name = self.preset.get("BACKGROUND_PLUGIN", "default")
-        
+
         if not plugin_registry.has_plugin(plugin_name):
             self.logger.warning(
                 f"Plugin '{plugin_name}' not found. Falling back to 'default' plugin."
             )
             plugin_name = "default"
-        
+
         plugin = plugin_registry.get_plugin(plugin_name, self.workspace)
         if plugin is None:
             raise RuntimeError(

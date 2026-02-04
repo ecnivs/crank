@@ -43,7 +43,9 @@ class VideoProcessor:
         )
         return float(result.stdout.strip())
 
-    def probe_scene_cuts(self, input_src: str, scene_threshold: float = 0.35) -> List[float]:
+    def probe_scene_cuts(
+        self, input_src: str, scene_threshold: float = 0.35
+    ) -> List[float]:
         """Use ffmpeg to detect scene change timestamps.
 
         Args:
@@ -81,7 +83,9 @@ class VideoProcessor:
                     continue
         return cuts
 
-    def band_edge_score(self, input_src: str, start: float, duration: float, band: str) -> float:
+    def band_edge_score(
+        self, input_src: str, start: float, duration: float, band: str
+    ) -> float:
         """Estimate text/overlay presence in vertical band by measuring edge activity.
 
         Args:
@@ -174,7 +178,9 @@ class VideoProcessor:
             sub_score = max(
                 self.band_edge_score(input_src, start_time, min(10.0, target), "top"),
                 self.band_edge_score(input_src, start_time, min(10.0, target), "mid"),
-                self.band_edge_score(input_src, start_time, min(10.0, target), "bottom"),
+                self.band_edge_score(
+                    input_src, start_time, min(10.0, target), "bottom"
+                ),
             )
             border_clearance = min(edge_distance(start_time), edge_distance(end_time))
             objective = (border_clearance) - (sub_score * 0.05)
@@ -234,9 +240,15 @@ class VideoProcessor:
                 if is_near_cut(start) or is_near_cut(end):
                     continue
                 score = max(
-                    self.band_edge_score(input_src, start, min(3.0, end - start), "top"),
-                    self.band_edge_score(input_src, start, min(3.0, end - start), "mid"),
-                    self.band_edge_score(input_src, start, min(3.0, end - start), "bottom"),
+                    self.band_edge_score(
+                        input_src, start, min(3.0, end - start), "top"
+                    ),
+                    self.band_edge_score(
+                        input_src, start, min(3.0, end - start), "mid"
+                    ),
+                    self.band_edge_score(
+                        input_src, start, min(3.0, end - start), "bottom"
+                    ),
                 )
                 candidates.append((score, start, end))
 
@@ -277,7 +289,10 @@ class VideoProcessor:
         output_path: Path = self.workspace / f"{input_path.stem}_short.mp4"
 
         segments = self.select_montage_segments(
-            str(input_path), duration, max_segment_len=7.0, total_target=min(60.0, duration)
+            str(input_path),
+            duration,
+            max_segment_len=7.0,
+            total_target=min(60.0, duration),
         )
 
         total_seg_duration = sum(e - s for s, e in segments)

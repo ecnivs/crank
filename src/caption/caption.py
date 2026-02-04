@@ -6,6 +6,7 @@ from typing import List, Dict, Union, Any
 
 try:
     import en_core_web_md
+
     SPACY_MODEL_AVAILABLE = True
 except ImportError:
     SPACY_MODEL_AVAILABLE = False
@@ -31,7 +32,7 @@ class Handler:
 
         self.stt: SpeechToText = SpeechToText(model_size)
         self.font: str = font
-        
+
         if SPACY_MODEL_AVAILABLE:
             self.nlp = en_core_web_md.load(disable=["ner", "lemmatizer"])
         else:

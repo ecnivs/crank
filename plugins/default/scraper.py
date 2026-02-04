@@ -21,7 +21,10 @@ class YouTubeScraper:
     """Handles YouTube video scraping, downloading, and cookie management."""
 
     def __init__(
-        self, workspace: Path, config: Dict[str, Any], processor: Optional[VideoProcessor] = None
+        self,
+        workspace: Path,
+        config: Dict[str, Any],
+        processor: Optional[VideoProcessor] = None,
     ) -> None:
         """Initialize the YouTube scraper.
 
