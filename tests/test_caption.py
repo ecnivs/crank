@@ -3,10 +3,8 @@ Tests for caption.Handler class.
 """
 
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
-
+from unittest.mock import MagicMock, patch
 import pytest
-
 from src.caption import Handler
 
 
@@ -86,7 +84,7 @@ class TestCaptionHandler:
         mock_spacy_load.return_value = mock_nlp
 
         handler = Handler(workspace=temp_dir, model_size="tiny", font="Arial")
-        result = handler.get_captions(sample_audio_file)
+        result, _ = handler.get_captions(sample_audio_file)
 
         assert result.exists()
         assert result.suffix == ".ass"
@@ -129,7 +127,7 @@ class TestCaptionHandler:
         mock_spacy_load.return_value = MagicMock()
 
         handler = Handler(workspace=temp_dir, model_size="tiny", font="Arial")
-        result = handler.get_captions(sample_audio_file)
+        result, _ = handler.get_captions(sample_audio_file)
 
         assert result.exists()
         content = result.read_text()
@@ -166,7 +164,5 @@ class TestCaptionHandler:
         words = ["run", "it", "fast"]
         colored = handler._apply_pos_coloring(words)
 
-        # VERB should be colored
         assert any("\\c&HD8BFD8&" in str(w) for w in colored)
-        # PRON should be colored
         assert any("\\c&FFDAB9&" in str(w) for w in colored)

@@ -31,10 +31,28 @@ class BackgroundVideoPlugin(ABC):
                   - title: Video title
                   - description: Video description
                   - categoryId: YouTube category ID
+                  - audio_path: Path to generated audio file
+                  - captions_path: Path to generated .ass subtitle file
+                  - caption_data: Dict with transcription segments and word-level timestamps
                   Plugins can use ANY fields they need, ignore others, or add custom logic.
                   The app passes everything available - plugins decide what to use.
 
         Returns:
-            Path: Path to processed background video file.
+            Union[Path, Dict[str, Any]]: Path to video file, OR a dict containing:
+                - video_path: Path to video file (Required)
+                - audio_path: Path to background audio file (Optional)
+                - config: Dict with keys like 'suppress_captions' (Optional)
         """
         pass
+
+    def get_prompt_context(self, topic: str) -> str:
+        """
+        Get custom instructions to inject into the LLM prompt.
+
+        Args:
+            topic: The user's requested topic.
+
+        Returns:
+            str: Additional instructions for the LLM (e.g., tone, formatting).
+        """
+        return ""

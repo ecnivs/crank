@@ -90,7 +90,6 @@ class Gemini:
         Determine if error is a server-side issue worth retrying.
         """
         if isinstance(error, ServerError):
-            # ServerError covers 5xx responses like 503 UNAVAILABLE.
             return True
         error_str = str(error)
         return "503" in error_str or "UNAVAILABLE" in error_str or "5xx" in error_str

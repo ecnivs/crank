@@ -19,7 +19,6 @@ def mock_orchestrator_dependencies(temp_dir, preset_handler, mock_gemini_client)
         patch("src.core.orchestrator.Handler") as mock_handler_class,
         patch("src.core.orchestrator.Uploader") as mock_uploader_class,
     ):
-        # Create mock instances
         mock_plugin = MagicMock()
         mock_plugin.get_media.return_value = temp_dir / "media.mp4"
 
@@ -35,7 +34,7 @@ def mock_orchestrator_dependencies(temp_dir, preset_handler, mock_gemini_client)
         mock_editor_class.return_value = mock_editor
 
         mock_handler = MagicMock()
-        mock_handler.get_captions.return_value = temp_dir / "captions.ass"
+        mock_handler.get_captions.return_value = (temp_dir / "captions.ass", {})
         mock_handler_class.return_value = mock_handler
 
         mock_uploader = MagicMock()

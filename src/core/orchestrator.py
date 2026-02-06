@@ -5,7 +5,7 @@ import datetime
 import logging
 import re
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, Union
 
 from googleapiclient.http import ResumableUploadError
 
@@ -111,22 +111,41 @@ class Orchestrator:
         Returns:
             Path: Path to assembled video file.
         """
-        self.logger.debug("Getting background video from plugin")
-        media_path = self.plugin.get_media(data)
-        self.logger.debug("Media downloaded")
-
         transcript = data.get("transcript", "")
         self.logger.debug("Generating audio...")
         audio_path = self.gemini.get_audio(transcript=transcript)
         self.logger.debug("Audio generated")
 
         self.logger.debug("Creating captions...")
-        ass_path = self.caption.get_captions(audio_path=audio_path)
+        ass_path, caption_data = self.caption.get_captions(audio_path=audio_path)
         self.logger.debug("Captions created")
+
+        # Update data with generated assets
+        data["audio_path"] = str(audio_path)
+        data["captions_path"] = str(ass_path)
+        data["caption_data"] = caption_data
+
+        self.logger.debug("Getting background video from plugin")
+        media_response = self.plugin.get_media(data)
+        self.logger.debug("Media downloaded")
+
+        video_path_input = media_response
+        background_audio_path = None
+        pipeline_config = {}
+
+        if isinstance(media_response, dict):
+            video_path_input = Path(media_response.get("video_path", ""))
+            if media_response.get("audio_path"):
+                background_audio_path = Path(media_response["audio_path"])
+            pipeline_config = media_response.get("config", {})
 
         self.logger.debug("Assembling video...")
         video_path = self.editor.assemble(
-            ass_path=ass_path, audio_path=audio_path, media_path=media_path
+            ass_path=ass_path,
+            audio_path=audio_path,
+            media_path=video_path_input,
+            background_audio_path=background_audio_path,
+            suppress_captions=pipeline_config.get("suppress_captions", False),
         )
         self.logger.debug(f"Video assembled: {video_path}")
 
@@ -263,7 +282,12 @@ class Orchestrator:
         Returns:
             Path: Path to generated video file.
         """
-        response: str = self.prompt.build(prompt, self.preset.get("USED_CONTENT", []))
+        plugin_instruction = self.plugin.get_prompt_context(prompt)
+        response: str = self.prompt.build(
+            prompt,
+            self.preset.get("USED_CONTENT", []),
+            plugin_instruction=plugin_instruction,
+        )
 
         def get_gemini_response() -> str:
             return self.gemini.get_response(response, DEFAULT_GEMINI_MODEL)
@@ -344,25 +368,51 @@ class Orchestrator:
             await self._print_error_message(QUOTA_EXCEEDED_MESSAGE)
             raise
 
-        ass_path = await self._execute_with_loading(
+        ass_path, caption_data = await self._execute_with_loading(
             "Generating captions", self.caption.get_captions, audio_path
         )
         await self._print_success_output("Captions path", str(ass_path))
 
-        def get_background_video() -> Path:
+        # Add generated assets to result for plugin
+        result["audio_path"] = str(audio_path)
+        result["captions_path"] = str(ass_path)
+        result["caption_data"] = caption_data
+
+        def get_background_video() -> Union[Path, Dict[str, Any]]:
             return self.plugin.get_media(result)
 
-        media_path = await self._execute_with_loading(
+        media_response = await self._execute_with_loading(
             "Preparing background video", get_background_video
         )
-        await self._print_success_output("Background video path", str(media_path))
+
+        video_path_input = media_response
+        background_audio_path = None
+        pipeline_config = {}
+
+        if isinstance(media_response, dict):
+            video_path_input = Path(media_response.get("video_path", ""))
+            if not video_path_input.name:  # Check if empty path
+                raise RuntimeError("Plugin returned dict but missing 'video_path'")
+
+            if media_response.get("audio_path"):
+                background_audio_path = Path(media_response["audio_path"])
+
+            pipeline_config = media_response.get("config", {})
+
+        await self._print_success_output("Background video path", str(video_path_input))
+        if background_audio_path:
+            await self._print_success_output(
+                "Background audio path", str(background_audio_path)
+            )
 
         video_path = await self._execute_with_loading(
             "Assembling video elements",
             self.editor.assemble,
             ass_path,
             audio_path,
-            media_path,
+            video_path_input,
+            background_audio_path,
+            pipeline_config.get("suppress_captions", False),
         )
 
         await self._print_success_output("Output Path", str(video_path))

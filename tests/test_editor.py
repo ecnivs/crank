@@ -62,6 +62,54 @@ class TestEditor:
         assert result == output_path
         assert result.exists()
 
+    def test_assemble_with_options(
+        self,
+        temp_dir,
+        sample_audio_file,
+        sample_video_file,
+        sample_ass_file,
+        mock_ffmpeg_probe,
+        monkeypatch,
+    ):
+        """Test assembly with background audio and suppressed captions."""
+        import subprocess
+        editor = Editor(workspace=temp_dir)
+        
+        output_path = temp_dir / "output.mp4"
+        output_path.write_bytes(b"fake")
+        
+        bg_audio = temp_dir / "bg.mp3"
+        bg_audio.write_bytes(b"fake")
+        
+        # Capture the command passed to subprocess.run
+        captured_cmd = []
+        def mock_run(cmd, **kwargs):
+            captured_cmd.extend(cmd)
+            result = Mock()
+            result.returncode = 0
+            return result
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        editor.assemble(
+            ass_path=sample_ass_file,
+            audio_path=sample_audio_file,
+            media_path=sample_video_file,
+            background_audio_path=bg_audio,
+            suppress_captions=True
+        )
+        
+        cmd_str = " ".join(captured_cmd)
+        
+        # Verify background audio input
+        assert "-i" in captured_cmd
+        assert str(bg_audio) in captured_cmd
+        
+        # Verify audio mixing filter
+        assert "amix=inputs=2" in cmd_str
+        
+        # Verify captions are NOT in the filter complex
+        assert f"ass={sample_ass_file}" not in cmd_str
+
     def test_assemble_missing_ass_file(
         self, temp_dir, sample_audio_file, sample_video_file
     ):

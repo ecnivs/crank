@@ -1,5 +1,3 @@
-
-
 <div align="center">
 
 <img width="1452" height="352" alt="crank" src="https://github.com/user-attachments/assets/bda075e8-8cb2-42c8-9e8b-6c7faa205774" />

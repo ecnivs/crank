@@ -2,7 +2,7 @@ import subprocess
 import json
 import logging
 from pathlib import Path
-from typing import Union
+from typing import Union, Optional
 
 
 class Editor:
@@ -64,6 +64,8 @@ class Editor:
         ass_path: Union[str, Path],
         audio_path: Union[str, Path],
         media_path: Union[str, Path],
+        background_audio_path: Optional[Union[str, Path]] = None,
+        suppress_captions: bool = False,
     ) -> Path:
         """
         Assemble video from media, audio, and subtitle file.
@@ -105,6 +107,7 @@ class Editor:
                 f"Please check that both audio and video files are valid."
             )
 
+        input_count = 2
         cmd = [
             "ffmpeg",
             "-y",
@@ -112,31 +115,63 @@ class Editor:
             str(media_path),
             "-i",
             str(audio_path),
-            "-filter_complex",
-            f"[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,"
-            f"pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,ass={ass_path}[v]",
-            "-map",
-            "[v]",
-            "-map",
-            "1:a:0",
-            "-c:v",
-            "libx264",
-            "-preset",
-            "medium",
-            "-crf",
-            "23",
-            "-c:a",
-            "aac",
-            "-b:a",
-            "128k",
-            "-pix_fmt",
-            "yuv420p",
-            "-movflags",
-            "+faststart",
-            "-t",
-            str(final_duration),
-            str(output_path),
         ]
+
+        if background_audio_path:
+            cmd.extend(["-i", str(background_audio_path)])
+            audio_filter = (
+                f"[1:a][2:a]amix=inputs=2:duration=first:dropout_transition=2[a]"
+            )
+            audio_map = "[a]"
+            input_count += 1
+        else:
+            audio_filter = ""
+            audio_map = "1:a:0"
+            
+        video_chain = (
+            f"[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,"
+            f"pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black[bg]"
+        )
+        
+        filter_parts = [video_chain]
+        last_label = "[bg]"
+
+        if not suppress_captions:
+            escaped_ass_path = str(ass_path).replace(":", "\\:").replace("'", "\\'")
+            filter_parts.append(f"{last_label}ass='{escaped_ass_path}'[v]")
+            last_label = "[v]"
+
+        filter_complex = ";".join(filter_parts)
+        if audio_filter:
+            filter_complex += f";{audio_filter}"
+
+        cmd.extend(
+            [
+                "-filter_complex",
+                filter_complex,
+                "-map",
+                last_label,
+                "-map",
+                audio_map,
+                "-c:v",
+                "libx264",
+                "-preset",
+                "medium",
+                "-crf",
+                "23",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "128k",
+                "-pix_fmt",
+                "yuv420p",
+                "-movflags",
+                "+faststart",
+                "-t",
+                str(final_duration),
+                str(output_path),
+            ]
+        )
 
         try:
             subprocess.run(cmd, check=True, capture_output=True, text=True)

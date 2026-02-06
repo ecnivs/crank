@@ -15,7 +15,7 @@ User Input → Core → Plugin Registry → Plugin Instance → Background Video
 1. **Core** loads the plugin name from `preset.yml` (defaults to "default")
 2. **Plugin Registry** discovers and loads plugins from the `plugins/` directory
 3. **Plugin Instance** is created with a workspace directory
-4. **Plugin** receives complete pipeline data and returns a video path
+4. **Plugin** receives complete pipeline data (including audio/captions) and returns a video path (and optional config)
 
 ### Key Principles
 
@@ -59,7 +59,7 @@ Create `plugins/your_plugin_name/plugin.py`:
 import logging
 import yaml
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Union
 
 from src.plugins.base import BackgroundVideoPlugin
 
@@ -76,52 +76,46 @@ class YourPluginNamePlugin(BackgroundVideoPlugin):
         super().__init__(workspace)
         self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
         self.config: Dict[str, Any] = self._load_config()
-        # Initialize your plugin-specific resources here
 
     def _load_config(self) -> Dict[str, Any]:
-        """Load plugin configuration from config.yml.
-
-        Returns:
-            Dictionary containing plugin configuration.
-        """
+        """Load plugin configuration from config.yml."""
         config_file = Path(__file__).parent / "config.yml"
         if config_file.exists():
             try:
                 with config_file.open("r", encoding="utf-8") as f:
-                    config = yaml.safe_load(f) or {}
-                    self.logger.info(f"Loaded config from {config_file}")
-                    return config
+                    return yaml.safe_load(f) or {}
             except Exception as e:
-                self.logger.warning(
-                    f"Failed to load config from {config_file}: {e}. Using defaults."
-                )
+                self.logger.warning(f"Failed to load config: {e}")
         return {}
 
-    def get_media(self, data: Dict[str, Any]) -> Path:
-        """Generate and return path to background video.
+    def get_prompt_context(self, topic: str) -> str:
+        """Inject instructions into the Gemini prompt."""
+        # Optional: Force the AI to write in a specific style
+        return "Write the script in a mysterious, dark tone."
 
-        Args:
-            data: Dictionary containing ALL available pipeline data:
-                  - transcript: Generated transcript text
-                  - title: Video title
-                  - description: Video description
-                  - search_term: Search term for video content
-                  - categoryId: YouTube category ID
-                  Extract only the fields you need.
+    def get_media(self, data: Dict[str, Any]) -> Union[Path, Dict[str, Any]]:
+        """Generate and return path to background video."""
 
-        Returns:
-            Path: Path to processed background video file.
-        """
-        # Extract the data you need
-        title = data.get("title", "")
+        # 1. Access available data
         transcript = data.get("transcript", "")
-        
-        # Your custom video generation logic here
-        # ...
-        
-        # Return path to generated video
-        video_path = self.workspace / "background_video.mp4"
-        return video_path
+        caption_data = data.get("caption_data", {}) # Word-level timestamps!
+        audio_path = Path(data.get("audio_path", "")) 
+
+        # 2. Your generation logic
+        video_path = self.workspace / "background.mp4"
+        # ... generate video at video_path ...
+
+        # 3. Return simple path OR advanced dict
+        # Simple: return video_path
+
+        # Advanced: Control the pipeline
+        return {
+            "video_path": video_path,
+            "audio_path": self.workspace / "spooky_music.mp3", # Mix this audio!
+            "config": {
+                "suppress_captions": True # Don't burn standard subtitles (I'll do it myself!)
+            }
+        }
 ```
 
 ### Step 3: Create config.yml (Optional)
@@ -131,360 +125,150 @@ Create `plugins/your_plugin_name/config.yml`:
 ```yaml
 # Your plugin configuration
 api_key: your_api_key_here
-max_results: 10
-custom_setting: value
+style: cinematic
 ```
-
-### Step 4: Plugin Class Requirements
-
-- **Class name**: Must end with `Plugin` (e.g., `MyCustomPlugin`)
-- **Inheritance**: Must inherit from `BackgroundVideoPlugin`
-- **Initialization**: Must accept `workspace: Path` parameter
-- **Method**: Must implement `get_media(data: Dict[str, Any]) -> Path`
 
 ## Plugin Interface
 
-### BackgroundVideoPlugin Base Class
+### 1. The `get_media` Method
 
-```python
-class BackgroundVideoPlugin(ABC):
-    def __init__(self, workspace: Path) -> None:
-        """Initialize with workspace directory."""
-        self.workspace: Path = workspace
+This is the core method. It receives `data` and returns the video result.
 
-    @abstractmethod
-    def get_media(self, data: Dict[str, Any]) -> Path:
-        """Generate and return path to background video."""
-        pass
-```
-
-### Data Dictionary
-
-The `data` dictionary passed to `get_media()` contains all available pipeline information:
+#### Input: `data` Dictionary
+The `data` dictionary contains EVERYTHING generated during the pipeline:
 
 ```python
 data = {
+    # Text Data
     "transcript": "Say hello: Welcome to our channel...",
     "title": "Amazing Facts About Space",
-    "description": "Learn about space exploration...",
+    "description": "Learn about space...",
     "search_term": "space exploration cinematic",
-    "categoryId": "24"
+    "categoryId": "24",
+    
+    # Asset Paths
+    "audio_path": "/tmp/.../speech.wav",
+    "captions_path": "/tmp/.../captions.ass",
+    
+    # Rich Data
+    "caption_data": {
+        "text": "...",
+        "segments": [
+            {
+                "start": 0.0,
+                "end": 2.5,
+                "text": "Welcome to...",
+                "words": [
+                    {"word": "Welcome", "start": 0.0, "end": 0.5},
+                    ...
+                ]
+            }
+        ]
+    }
 }
 ```
 
-**Important**: 
-- Plugins can use ANY combination of these fields
-- Plugins can ignore fields they don't need
-- The app passes everything available - plugins decide what to use
+#### Output: Video Result
+You can return one of two things:
+
+**Option A: Simple Path** (Backward Compatible)
+```python
+return Path("/path/to/video.mp4")
+```
+*Effect*: The app uses this video, mixes it with the voiceover, and burns standard subtitles on top.
+
+**Option B: Advanced Dictionary** (For "Power" Plugins)
+```python
+return {
+    "video_path": Path("/path/to/video.mp4"),       # Required
+    "audio_path": Path("/path/to/background.mp3"),  # Optional: Mixed with voiceover
+    "config": {
+        "suppress_captions": True                   # Optional: Disable standard subtitles
+    }
+}
+```
+
+### 2. The `get_prompt_context` Method
+
+**Optional**. Implement this to give instructions to the LLM *before* script generation.
+
+```python
+def get_prompt_context(self, topic: str) -> str:
+    return "Ensure the script uses short, punchy sentences suitable for a montage."
+```
+
+## Advanced Features Guide
+
+### Feature A: Kinetic Typography / Custom Subtitles
+If your plugin renders text directly onto the video (like a lyric video or Kinetic Typography), you don't want the standard `.ass` subtitles printed on top.
+
+1. Implement your text rendering using `caption_data` (timestamps) inside `get_media`.
+2. Return with suppression:
+   ```python
+   return {
+       "video_path": video,
+       "config": {"suppress_captions": True}
+   }
+   ```
+
+### Feature B: Audio Ambience
+If your plugin generates a scary story, you might want rain sounds or creepy music.
+
+1. Generate or download the audio file in `get_media`.
+2. Return it:
+   ```python
+   return {
+       "video_path": video,
+       "audio_path": "/path/to/rain_sounds.mp3"
+   }
+   ```
+   The editor will automatically use `amix` to combine the Voiceover + Your Audio.
+
+### Feature C: Prompt Injection (Persona)
+If you want to create a "Roast" plugin where the AI mocks the topic.
+
+1. Implementation:
+   ```python
+   def get_prompt_context(self, topic: str) -> str:
+       return "Write the script as a roast. Be sarcastic and funny."
+   ```
 
 ## Example Plugins
 
-### Example 1: Using search_term (Default Plugin)
+### Example 1: The "Simple Scraper"
+Just finds a video based on the search term.
 
 ```python
-class DefaultPlugin(BackgroundVideoPlugin):
+class SimplePlugin(BackgroundVideoPlugin):
     def get_media(self, data: Dict[str, Any]) -> Path:
-        search_term = data.get("search_term", "")
-        # Use search_term for YouTube scraping
-        return self.scraper.get_media(search_term)
+        term = data.get("search_term")
+        return self.scraper.download(term)
 ```
 
-### Example 2: Using transcript for AI-generated visuals
+### Example 2: The "Kinetic Type" Generator
+Uses timestamps to animate text and disables standard captions.
 
 ```python
-class AIVisualsPlugin(BackgroundVideoPlugin):
-    def get_media(self, data: Dict[str, Any]) -> Path:
-        transcript = data.get("transcript", "")
-        # Generate visuals from transcript using AI
-        return self._generate_ai_visuals(transcript)
-```
-
-### Example 3: Using title and description
-
-```python
-class KeywordPlugin(BackgroundVideoPlugin):
-    def get_media(self, data: Dict[str, Any]) -> Path:
-        title = data.get("title", "")
-        description = data.get("description", "")
-        # Use title + description for keyword-based selection
-        keywords = self._extract_keywords(title, description)
-        return self._select_video_by_keywords(keywords)
-```
-
-### Example 4: Using all fields
-
-```python
-class MultiSourcePlugin(BackgroundVideoPlugin):
-    def get_media(self, data: Dict[str, Any]) -> Path:
-        # Use all available data for complex generation
-        transcript = data.get("transcript", "")
-        title = data.get("title", "")
-        search_term = data.get("search_term", "")
-        category = data.get("categoryId", "")
-        
-        # Complex multi-source logic
-        return self._generate_from_multiple_sources(
-            transcript, title, search_term, category
-        )
-```
-
-## Configuration
-
-### Plugin Configuration
-
-Each plugin loads its own configuration from `plugins/{plugin_name}/config.yml`:
-
-```yaml
-# plugins/my_plugin/config.yml
-api_key: your_api_key
-max_results: 10
-quality: high
-```
-
-Access configuration in your plugin:
-
-```python
-def __init__(self, workspace: Path) -> None:
-    super().__init__(workspace)
-    self.config = self._load_config()
-    api_key = self.config.get("api_key")
-```
-
-### Preset Configuration
-
-In `preset.yml`, only specify which plugin to use:
-
-```yaml
-# config/preset.yml
-BACKGROUND_PLUGIN: my_custom_plugin  # Optional, defaults to "default"
-```
-
-**Important**: Plugin-specific settings belong in the plugin's `config.yml`, not in `preset.yml`.
-
-## Plugin Discovery
-
-The plugin registry automatically discovers plugins by:
-
-1. Scanning `plugins/` directory for subdirectories
-2. Looking for `plugin.py` in each subdirectory
-3. Finding a class ending with `Plugin` that inherits from `BackgroundVideoPlugin`
-4. Registering the plugin with the directory name as the plugin identifier
-
-### Discovery Rules
-
-- Plugin directory name = plugin identifier
-- Must have `plugin.py` file
-- Plugin class name must end with `Plugin`
-- Plugin class must inherit from `BackgroundVideoPlugin`
-
-## Error Handling
-
-### Plugin Loading Errors
-
-If a plugin fails to load:
-- The registry logs an error
-- The app falls back to the "default" plugin
-- Clear error messages are logged
-
-### Plugin Execution Errors
-
-Handle errors in your plugin:
-
-```python
-def get_media(self, data: Dict[str, Any]) -> Path:
-    try:
-        # Your logic
-        return video_path
-    except Exception as e:
-        self.logger.error(f"Failed to generate video: {e}", exc_info=True)
-        raise  # Re-raise to let orchestrator handle it
-```
-
-## Best Practices
-
-### 1. Self-Contained Plugins
-
-- Keep all plugin code and resources in the plugin directory
-- Load configuration from plugin's own `config.yml`
-- Don't depend on external files outside the plugin directory
-
-### 2. Logging
-
-Use the logger for debugging and monitoring:
-
-```python
-self.logger.debug("Processing video generation")
-self.logger.info("Video generated successfully")
-self.logger.warning("Using fallback method")
-self.logger.error("Failed to generate video", exc_info=True)
-```
-
-### 3. Workspace Management
-
-- Use `self.workspace` for temporary files
-- Clean up temporary files when done
-- Return paths relative to workspace or absolute paths
-
-### 4. Configuration Validation
-
-Validate configuration in `__init__`:
-
-```python
-def __init__(self, workspace: Path) -> None:
-    super().__init__(workspace)
-    self.config = self._load_config()
-    
-    # Validate required config
-    if "api_key" not in self.config:
-        raise ValueError("api_key is required in config.yml")
-```
-
-### 5. Data Extraction
-
-Extract only what you need:
-
-```python
-def get_media(self, data: Dict[str, Any]) -> Path:
-    # Extract only needed fields
-    title = data.get("title", "")
-    transcript = data.get("transcript", "")
-    
-    # Ignore fields you don't use
-    # The app doesn't care what you use
-```
-
-### 6. Type Hints
-
-Use proper type hints:
-
-```python
-from typing import Any, Dict
-from pathlib import Path
-
-def get_media(self, data: Dict[str, Any]) -> Path:
-    """Type hints help with IDE support and documentation."""
-    pass
-```
-
-## Testing
-
-### Manual Testing
-
-1. Create your plugin in `plugins/your_plugin/`
-2. Add `BACKGROUND_PLUGIN: your_plugin` to `preset.yml`
-3. Run the application
-4. Check logs for plugin loading and execution
-
-### Unit Testing
-
-Test your plugin independently:
-
-```python
-from pathlib import Path
-from plugins.your_plugin.plugin import YourPluginPlugin
-
-def test_plugin():
-    workspace = Path("/tmp/test_workspace")
-    plugin = YourPluginPlugin(workspace)
-    
-    data = {
-        "title": "Test Title",
-        "transcript": "Test transcript",
-        "search_term": "test",
-    }
-    
-    video_path = plugin.get_media(data)
-    assert video_path.exists()
+class KineticPlugin(BackgroundVideoPlugin):
+    def get_media(self, data: Dict[str, Any]) -> Union[Path, Dict[str, Any]]:
+        captions = data.get("caption_data")
+        # ... generate animated text video using captions ...
+        return {
+            "video_path": generated_video,
+            "config": {"suppress_captions": True}
+        }
 ```
 
 ## Troubleshooting
 
-### Plugin Not Found
-
-**Error**: `Plugin 'your_plugin' not found`
-
-**Solutions**:
-- Check plugin directory exists: `plugins/your_plugin/`
-- Check `plugin.py` exists: `plugins/your_plugin/plugin.py`
-- Check class name ends with `Plugin`
-- Check class inherits from `BackgroundVideoPlugin`
-
-### Plugin Not Loading
-
-**Error**: `Failed to load plugin from plugins/your_plugin/plugin.py`
-
-**Solutions**:
-- Check for syntax errors in `plugin.py`
-- Check imports are correct
-- Check class is properly defined
-- Review logs for detailed error messages
-
-### Configuration Not Loading
-
-**Error**: Config not found or invalid
-
-**Solutions**:
-- Check `config.yml` exists in plugin directory
-- Check YAML syntax is valid
-- Check file permissions
-- Plugin will use empty dict if config missing
-
-## Advanced Topics
-
-### Plugin Dependencies
-
-If your plugin needs external dependencies:
-
-1. Document them in a `requirements.txt` in your plugin directory
-2. Users install them separately
-3. Import them in your plugin code
-
-### Plugin Resources
-
-Store plugin-specific resources in your plugin directory:
-
-```
-plugins/my_plugin/
-├── plugin.py
-├── config.yml
-├── assets/
-│   └── templates/
-└── models/
-    └── model.pkl
-```
-
-Access them using `Path(__file__).parent`:
-
-```python
-assets_dir = Path(__file__).parent / "assets"
-template_path = assets_dir / "templates" / "template.json"
-```
-
-### Multiple Plugin Versions
-
-To support multiple versions:
-
-```
-plugins/
-├── my_plugin_v1/
-│   └── plugin.py
-└── my_plugin_v2/
-    └── plugin.py
-```
-
-Users specify version in `preset.yml`:
-
-```yaml
-BACKGROUND_PLUGIN: my_plugin_v2
-```
+- **Plugin Not Found**: Check directory name matches `preset.yml`.
+- **Missing Data**: Ensure you check if keys exist (e.g., `data.get("audio_path")`) as some might be missing in partial runs (though usually present).
+- **FFmpeg Errors**: If mixing audio, ensure your audio file is valid.
 
 ## Summary
 
 - **Create**: `plugins/{name}/plugin.py` with a class ending in `Plugin`
 - **Inherit**: From `BackgroundVideoPlugin`
-- **Implement**: `get_media(data: Dict[str, Any]) -> Path`
-- **Configure**: Use `plugins/{name}/config.yml` for settings
-- **Use**: Any data from the pipeline dictionary
-- **Return**: Path to generated background video
-
-Plugins are powerful, flexible, and completely independent. Create plugins that use any data and any generation strategy without modifying the core application!
+- **Inject**: Use `get_prompt_context` to guide the AI.
+- **Implement**: `get_media` to generate video.
+- **Control**: Return a Dict to mix audio or suppress captions.

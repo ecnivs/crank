@@ -20,13 +20,14 @@ class Prompt:
             "CATEGORY_ID": self.prompts.get("GET_CATEGORY_ID", ""),
         }
 
-    def build(self, query: str, used_topics: List[str]) -> str:
+    def build(self, query: str, used_topics: List[str], plugin_instruction: str = "") -> str:
         """
         Construct a prompt for the AI using the loaded templates.
 
         Args:
             query: Topic or keyword to generate content around.
             used_topics: List of topics to avoid in generation.
+            plugin_instruction: Optional instruction from the active plugin.
 
         Returns:
             str: Formatted prompt including instructions for output format.
@@ -38,9 +39,15 @@ class Prompt:
             "compare their hooks using the criteria provided, select the best, and "
             "RETURN ONLY the chosen transcript."
         )
-        return (
+        
+        prompt = (
             f"Topic: {query}\n\n"
             f"Topics to avoid: {used_topics}\n\n"
             f"{selection_note}\n\n"
-            f"{output_section}"
         )
+        
+        if plugin_instruction:
+            prompt += f"Plugin Instructions: {plugin_instruction}\n\n"
+            
+        prompt += f"{output_section}"
+        return prompt

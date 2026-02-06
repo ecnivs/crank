@@ -95,7 +95,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         return colored_words
 
-    def get_captions(self, audio_path: Union[str, Path]) -> Path:
+    def get_captions(self, audio_path: Union[str, Path]) -> tuple[Path, Dict[str, Any]]:
         """
         Generate ASS captions from audio file.
 
@@ -103,7 +103,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             audio_path: Path to audio file to transcribe.
 
         Returns:
-            Path: Path to the generated ASS file.
+            tuple[Path, Dict[str, Any]]: Path to the generated ASS file and the raw transcription data.
 
         Raises:
             FileNotFoundError: If audio file does not exist.
@@ -167,4 +167,4 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     i += chunk_size
 
         self.logger.info(f"ASS saved to {path}")
-        return path
+        return path, result
