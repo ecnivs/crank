@@ -73,7 +73,11 @@ pip install uv
 ```bash
 uv sync
 ```
-4. **Install `ffmpeg`**
+4. **Download `spaCy` model**
+```bash
+uv run python -m spacy download en_core_web_md
+```
+5. **Install `ffmpeg`**
 ```bash
 # Debian / Ubuntu
 sudo apt install ffmpeg
@@ -87,7 +91,7 @@ brew install ffmpeg
 # Windows (using Chocolatey)
 choco install ffmpeg
 ```
-5. **Install `spaCy` language model**
+6. **Install `spaCy` language model**
 ```bash
 uv run python -m spacy download en_core_web_md
 ```
